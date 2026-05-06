@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm install --legacy-peer-deps && npx vite build"
+
+[deploy]
+startCommand = "npx serve -s dist -l $PORT"
+
+# Environment variables to set in Railway dashboard:
+#
+# VITE_API_URL → https://your-api.railway.app  (if API is on a separate domain)

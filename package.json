@@ -1,0 +1,7 @@
+{
+  "name": "morelay",
+  "private": true,
+  "engines": {
+    "node": "23"
+  }
+}

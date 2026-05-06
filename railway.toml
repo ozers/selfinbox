@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd apps/web && rm -f package-lock.json && npm install --legacy-peer-deps && VITE_API_URL='' npx vite build && cd ../api && cp -r ../web/dist ./public && npm install && npm run build"
+
+[deploy]
+startCommand = "cd apps/api && npm start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

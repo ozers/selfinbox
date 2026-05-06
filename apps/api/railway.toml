@@ -1,0 +1,23 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd ../web && npm install --legacy-peer-deps && VITE_API_URL='' npx vite build && cd ../api && cp -r ../web/dist ./public && npm install && npm run build"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Environment variables to set in Railway dashboard:
+#
+# DATABASE_URL        → Railway PostgreSQL addon (auto-injected)
+# JWT_SECRET          → openssl rand -hex 32
+# APP_URL             → https://your-api.railway.app
+# FROM_EMAIL          → noreply@yourdomain.com
+# AWS_REGION          → eu-west-1
+# AWS_ACCESS_KEY_ID   → from AWS IAM
+# AWS_SECRET_ACCESS_KEY → from AWS IAM
+# S3_INBOUND_BUCKET   → selfinbox-inbound
+# SMTP_HOST           → your-api.railway.app (or custom domain)
+# CORS_ORIGIN         → https://your-web.railway.app
