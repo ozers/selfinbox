@@ -35,7 +35,7 @@ export default function DomainDetailPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { domain, loading, refetch } = useDomain(id)
-  const { verifyDomain, createAddress, deleteAddress, deleteDomain } = useDomainActions()
+  const { verifyDomain, createAddress, createCatchall, deleteAddress, deleteDomain } = useDomainActions()
 
   const [showAddForm, setShowAddForm] = useState(false)
   const [addressPrefix, setAddressPrefix] = useState("")
@@ -397,24 +397,54 @@ export default function DomainDetailPage() {
       </motion.div>
 
       {/* Catch-all */}
-      <motion.div
-        variants={item}
-        className="flex flex-col gap-3 rounded-xl border border-border bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div>
-          <h3 className="text-sm font-semibold">Catch-all Address</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Receive emails sent to any address at this domain.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full bg-secondary"
+      {(() => {
+        const catchall = domain.addresses.find((a) => a.isCatchall)
+        const enabled = !!catchall
+        const handleToggle = async () => {
+          try {
+            if (enabled && catchall) {
+              await deleteAddress(domain.id, catchall.id)
+              toast({ message: "Catch-all disabled", variant: "success" })
+            } else {
+              await createCatchall(domain.id)
+              toast({ message: "Catch-all enabled — *@" + domain.domain, variant: "success" })
+            }
+            await refetch()
+          } catch (err: any) {
+            toast({ message: err.message || "Failed to toggle catch-all", variant: "error" })
+          }
+        }
+        return (
+          <motion.div
+            variants={item}
+            className="flex flex-col gap-3 rounded-xl border border-border bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
           >
-            <span className="inline-block h-5 w-5 translate-x-0.5 translate-y-0.5 transform rounded-full bg-muted-foreground/30 shadow transition-transform" />
-          </button>
-        </div>
-      </motion.div>
+            <div>
+              <h3 className="text-sm font-semibold">Catch-all Address</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {enabled
+                  ? `Active — any address @${domain.domain} routes to this inbox.`
+                  : "Receive emails sent to any address at this domain."}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleToggle}
+                aria-pressed={enabled}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors ${
+                  enabled ? "bg-primary" : "bg-secondary"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 translate-y-0.5 transform rounded-full shadow transition-all ${
+                    enabled ? "translate-x-[22px] bg-white" : "translate-x-0.5 bg-muted-foreground/30"
+                  }`}
+                />
+              </button>
+            </div>
+          </motion.div>
+        )
+      })()}
 
       {/* Danger Zone */}
       <motion.div

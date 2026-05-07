@@ -57,11 +57,15 @@ export function useDomainActions() {
     return api.post(`/domains/${domainId}/addresses`, { prefix, forwardingTo, displayName })
   }
 
+  const createCatchall = async (domainId: string, forwardingTo?: string) => {
+    return api.post(`/domains/${domainId}/addresses`, { isCatchall: true, forwardingTo })
+  }
+
   const deleteAddress = async (domainId: string, addressId: string) => {
     return api.delete(`/domains/${domainId}/addresses/${addressId}`)
   }
 
-  return { createDomain, deleteDomain, verifyDomain, createAddress, deleteAddress }
+  return { createDomain, deleteDomain, verifyDomain, createAddress, createCatchall, deleteAddress }
 }
 
 // ── Emails ─────────────────────────────────────────────────────────
