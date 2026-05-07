@@ -195,62 +195,117 @@ export default function DomainDetailPage() {
             {recheckLoading ? "Checking..." : "Recheck DNS"}
           </Button>
         </div>
-        <div className="divide-y divide-border">
-          {domain.dnsRecords.map((record, i) => {
-            const isMx = record.type === "MX"
-            const [mxPriority, mxHost] = isMx ? record.value.split(" ") : ["", ""]
-            return (
-              <div key={i} className="group flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-5 sm:py-3.5">
-                {/* Type + status (header on mobile, left/right on desktop) */}
-                <div className="flex items-center justify-between gap-3 sm:contents">
-                  <span className="w-12 shrink-0 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {/* Desktop: fixed-layout table, columns truncate with ellipsis */}
+        <table className="hidden w-full table-fixed sm:table">
+          <colgroup>
+            <col className="w-[72px]" />
+            <col />
+            <col />
+            <col className="w-12" />
+          </colgroup>
+          <tbody className="divide-y divide-border">
+            {domain.dnsRecords.map((record, i) => {
+              const isMx = record.type === "MX"
+              const [mxPriority, mxHost] = isMx ? record.value.split(" ") : ["", ""]
+              const valueText = isMx ? mxHost : record.value
+              return (
+                <tr key={i} className="group">
+                  <td className="px-5 py-3.5 align-middle text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     {record.type}
-                  </span>
-                  <span className="sm:hidden">
+                  </td>
+                  <td className="px-3 py-3.5 align-middle">
+                    <div className="flex items-center gap-1.5">
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={record.name}>
+                        {record.name}
+                      </span>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(record.name); toast({ type: "success", title: "Copied!" }) }}
+                        className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
+                        aria-label="Copy name"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3.5 align-middle">
+                    <div className="flex items-center gap-1.5">
+                      {isMx && (
+                        <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                          {mxPriority}
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs text-primary" title={valueText}>
+                        {valueText}
+                      </span>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(valueText); toast({ type: "success", title: "Copied!" }) }}
+                        className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
+                        aria-label="Copy value"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 align-middle">
                     {record.verified ? (
                       <CheckCircle className="h-4 w-4 text-status-active" />
                     ) : (
                       <XCircle className="h-4 w-4 text-muted-foreground/40" />
                     )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+
+        {/* Mobile: stacked rows */}
+        <div className="divide-y divide-border sm:hidden">
+          {domain.dnsRecords.map((record, i) => {
+            const isMx = record.type === "MX"
+            const [mxPriority, mxHost] = isMx ? record.value.split(" ") : ["", ""]
+            const valueText = isMx ? mxHost : record.value
+            return (
+              <div key={i} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {record.type}
                   </span>
-                </div>
-                {/* Name column */}
-                <div className="flex min-w-0 items-center gap-1 sm:flex-1">
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground sm:flex-none">{record.name}</span>
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(record.name); toast({ type: "success", title: "Copied!" }) }}
-                    className="shrink-0 rounded p-1 text-muted-foreground opacity-100 transition-opacity hover:bg-muted hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </button>
-                </div>
-                {/* Value column */}
-                <div className="flex min-w-0 items-center gap-1 sm:flex-[2]">
-                  {isMx ? (
-                    <>
-                      <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                        {mxPriority}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate font-mono text-xs text-primary sm:flex-none">{mxHost}</span>
-                    </>
-                  ) : (
-                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-primary sm:flex-none">{record.value}</span>
-                  )}
-                  <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(isMx ? mxHost : record.value); toast({ type: "success", title: "Copied!" }) }}
-                    className="ml-1 shrink-0 rounded p-1 text-muted-foreground opacity-100 transition-opacity hover:bg-muted hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </button>
-                </div>
-                {/* Status (desktop only — mobile shown above) */}
-                <span className="hidden sm:inline">
                   {record.verified ? (
-                    <CheckCircle className="h-4 w-4 shrink-0 text-status-active" />
+                    <CheckCircle className="h-4 w-4 text-status-active" />
                   ) : (
-                    <XCircle className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+                    <XCircle className="h-4 w-4 text-muted-foreground/40" />
                   )}
-                </span>
+                </div>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={record.name}>
+                    {record.name}
+                  </span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(record.name); toast({ type: "success", title: "Copied!" }) }}
+                    className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label="Copy name"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  {isMx && (
+                    <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      {mxPriority}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-primary" title={valueText}>
+                    {valueText}
+                  </span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(valueText); toast({ type: "success", title: "Copied!" }) }}
+                    className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label="Copy value"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -404,14 +459,14 @@ export default function DomainDetailPage() {
           try {
             if (enabled && catchall) {
               await deleteAddress(domain.id, catchall.id)
-              toast({ message: "Catch-all disabled", variant: "success" })
+              toast({ type: "success", title: "Catch-all disabled" })
             } else {
               await createCatchall(domain.id)
-              toast({ message: "Catch-all enabled — *@" + domain.domain, variant: "success" })
+              toast({ type: "success", title: "Catch-all enabled", description: `*@${domain.domain}` })
             }
             await refetch()
           } catch (err: any) {
-            toast({ message: err.message || "Failed to toggle catch-all", variant: "error" })
+            toast({ type: "error", title: err.message || "Failed to toggle catch-all" })
           }
         }
         return (
