@@ -93,14 +93,15 @@ If your prereqs are in place, the whole local setup is this block:
 ```bash
 git clone https://github.com/ozers/selfinbox && cd selfinbox
 
-# 1. Install
-(cd apps/api && npm install) && (cd apps/web && npm install)
+# 1. Bootstrap: copies .env.example → .env, generates a JWT_SECRET,
+#    runs npm install in both apps. Idempotent.
+npm run init
 
-# 2. Configure (edit DATABASE_URL, JWT_SECRET, FROM_EMAIL, AWS_REGION)
-cp .env.example apps/api/.env && $EDITOR apps/api/.env
+# 2. Fill in DATABASE_URL, FROM_EMAIL, AWS_REGION in apps/api/.env
+$EDITOR apps/api/.env
 
 # 3. Provision AWS resources (idempotent — S3 + SNS + IAM + SES rule)
-APP_URL=http://localhost:3001 ./scripts/setup-aws.sh
+APP_URL=http://localhost:3001 npm run aws:setup
 #    paste the printed AWS_ACCESS_KEY_ID / SECRET into apps/api/.env
 
 # 4. Verify your sender domain in SES, add the printed DNS records
@@ -120,36 +121,40 @@ Walkthrough below if you want what each step actually does.
 
 ### Step by step
 
-#### 1. Clone and install
+#### 1. Clone and bootstrap
 
 ```bash
 git clone https://github.com/ozers/selfinbox
 cd selfinbox
-(cd apps/api && npm install)
-(cd apps/web && npm install)
+npm run init
 ```
 
-#### 2. Configure your environment
+`npm run init` runs [`scripts/init.sh`](scripts/init.sh), which:
 
-```bash
-cp .env.example apps/api/.env
-$EDITOR apps/api/.env
-```
+- Checks the prereqs are on your `PATH` (warn-only, doesn't block)
+- Copies `.env.example` → `apps/api/.env` (only if it doesn't already exist)
+- Generates a fresh 48-byte `JWT_SECRET` and fills it in
+- Runs `npm install` in both `apps/api` and `apps/web`
+
+It's idempotent — safe to re-run.
+
+#### 2. Fill in your config
+
+Open `apps/api/.env`. The minimum to provide:
 
 | Variable | What to put |
 |---|---|
 | `DATABASE_URL` | Postgres connection string. Schema auto-creates on first boot. SSL auto-enables for any non-localhost host — see provider examples in [`.env.example`](.env.example) (Neon / Supabase / Railway / RDS all work as-is). |
-| `JWT_SECRET` | 32+ random chars. Generate: `openssl rand -base64 48` |
 | `FROM_EMAIL` | The address system mail (verify, password reset) sends from. Must be on a domain you'll verify in SES. |
 | `AWS_REGION` | `eu-west-1`, `us-east-1`, or `us-west-2` (SES inbound regions). |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Leave blank — step 3 prints fresh ones. |
 
-Full annotated list: [`.env.example`](.env.example).
+`JWT_SECRET` was generated for you in step 1. Full annotated list of every env var: [`.env.example`](.env.example).
 
 #### 3. Provision AWS resources
 
 ```bash
-APP_URL=http://localhost:3001 ./scripts/setup-aws.sh
+APP_URL=http://localhost:3001 npm run aws:setup
 ```
 
 The script is idempotent — re-running skips anything that exists. It creates:

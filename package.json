@@ -3,5 +3,9 @@
   "private": true,
   "engines": {
     "node": "23"
+  },
+  "scripts": {
+    "init": "./scripts/init.sh",
+    "aws:setup": "./scripts/setup-aws.sh"
   }
 }
