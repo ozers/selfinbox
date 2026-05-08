@@ -21,10 +21,19 @@ import { startDnsPoller } from "./lib/dns-poller.js";
 
 const app = new Hono();
 
+// CORS: by default accept the local Vite dev server. In production deploys
+// where the API serves the built SPA from the same origin, CORS isn't used at
+// all. If you serve the frontend from a different origin, set WEB_ORIGIN
+// (comma-separated for multiple).
+const corsOrigins = (process.env.WEB_ORIGIN ?? "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(
   "/api/*",
   cors({
-    origin: ["http://localhost:5173"],
+    origin: corsOrigins,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
   })

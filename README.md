@@ -112,6 +112,7 @@ All config is environment variables. See [`.env.example`](.env.example) for the 
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | yes | IAM user from `setup-aws.sh`. |
 | `S3_INBOUND_BUCKET` | yes | Default `selfinbox-inbound`. |
 | `REGISTRATION_ENABLED` | no | Default `false`. Set `true` to allow signups. |
+| `WEB_ORIGIN` | no | CORS allow-list for the SPA, comma-separated. Only needed if SPA and API are on different origins. |
 | `CLOUDFLARE_API_TOKEN` *or* `CLOUDFLARE_CLIENT_ID/SECRET` | no | Enables one-click Cloudflare DNS setup. |
 | `VITE_BRAND_NAME`, `VITE_SUPPORT_EMAIL` | no | Rebrand the UI without touching code. |
 
@@ -165,6 +166,7 @@ A single-user deploy with a few hundred emails/month typically runs **under $1/m
 - **Multi-region** — single SES region only.
 - **Outbound IP warmup** — SES handles its own reputation pool. If you need dedicated IPs, configure them in SES directly.
 - **Admin UI** — `REGISTRATION_ENABLED` env flag is the entire user-management surface. By design.
+- **Rate limiting** — auth endpoints (`/login`, `/register`, `/forgot-password`) have no built-in throttle. If you expose the deploy publicly, put it behind a rate limiter — Cloudflare's free tier, [`hono-rate-limiter`](https://github.com/rhinobase/hono-rate-limiter), or an nginx/Caddy `limit_req` directive all work.
 
 ## Brand / fork notes
 
