@@ -575,6 +575,27 @@ aws ses verify-domain-dkim     --domain yourdomain.com
             <span className="font-mono text-xs">MIT</span>
           </div>
         </div>
+
+        <div className="mx-auto mt-8 max-w-6xl border-t border-border/50 pt-6 text-center text-xs text-muted-foreground">
+          Built by{" "}
+          <a
+            href="https://ozersubasi.com"
+            target="_blank"
+            rel="author noreferrer"
+            className="font-medium text-foreground hover:text-primary transition-colors"
+          >
+            Ozer Subasi
+          </a>
+          {" · "}
+          <a
+            href="https://github.com/ozers"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground transition-colors"
+          >
+            github.com/ozers
+          </a>
+        </div>
       </footer>
     </div>
   )
