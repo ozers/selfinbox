@@ -4,8 +4,19 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
+// SSL: required by every cloud Postgres (Neon, Supabase, RDS, Railway, etc.).
+// Disabled only for local connections (localhost / 127.0.0.1 / unix socket).
+function shouldUseSsl(url: string): boolean | { rejectUnauthorized: false } {
+  const isLocal = /(@|\/)(localhost|127\.0\.0\.1|0\.0\.0\.0)(:|\/)/.test(url) || url.startsWith("postgres://localhost") || url.includes("host=/");
+  if (isLocal) return false;
+  // Honor explicit sslmode=disable in the URL
+  if (/[?&]sslmode=disable\b/.test(url)) return false;
+  // Most managed providers ship with self-signed-ish chains — accept without verification
+  return { rejectUnauthorized: false };
+}
+
 const sql = postgres(process.env.DATABASE_URL, {
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+  ssl: shouldUseSsl(process.env.DATABASE_URL),
   max: 10,
   idle_timeout: 20,
   onnotice: () => {},

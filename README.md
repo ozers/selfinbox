@@ -138,7 +138,7 @@ $EDITOR apps/api/.env
 
 | Variable | What to put |
 |---|---|
-| `DATABASE_URL` | Postgres connection string. Schema auto-creates on first boot. |
+| `DATABASE_URL` | Postgres connection string. Schema auto-creates on first boot. SSL auto-enables for any non-localhost host — see provider examples in [`.env.example`](.env.example) (Neon / Supabase / Railway / RDS all work as-is). |
 | `JWT_SECRET` | 32+ random chars. Generate: `openssl rand -base64 48` |
 | `FROM_EMAIL` | The address system mail (verify, password reset) sends from. Must be on a domain you'll verify in SES. |
 | `AWS_REGION` | `eu-west-1`, `us-east-1`, or `us-west-2` (SES inbound regions). |
