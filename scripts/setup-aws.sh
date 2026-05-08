@@ -213,9 +213,16 @@ Next steps:
        (or: aws ses verify-domain-identity --domain yourdomain.com)
      Add the printed DKIM CNAMEs to your DNS.
 
-  3. Request production SES access if you haven't already (your account
-     starts in the SES sandbox = can only send to verified addresses).
+  3. Decide what to do about the SES sandbox. New accounts start in the
+     sandbox — receiving works fine either way, sandbox only limits sending:
+
+     Option A — stay in sandbox (forwarding-only or fixed recipients):
+       aws ses verify-email-identity --email you@example.com
+       (one per recipient, then click the AWS confirmation email)
+
+     Option B — leave sandbox (send to anyone, no per-recipient setup):
        Console → SES → Account dashboard → Request production access
+       (approval takes a few hours)
 
   4. Bind your bounce/complaint topic to your verified identities:
        aws ses set-identity-notification-topic --identity yourdomain.com \\

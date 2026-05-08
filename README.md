@@ -93,7 +93,12 @@ aws ses verify-domain-dkim     --domain yourdomain.com
 
 Open `http://localhost:5173`, register the first account (set `REGISTRATION_ENABLED=true` first), add a domain, paste the generated DNS records at your registrar, and you're live.
 
-**One gotcha:** new AWS accounts start in the SES sandbox — you can only send to verified addresses, capped at 200/day. Request production access early: AWS Console → SES → Account dashboard → "Request production access". Approval takes a few hours.
+**One gotcha — the SES sandbox:** new AWS accounts start in the SES sandbox, which only restricts *sending* (receiving works either way). You have two options:
+
+- **Stay in sandbox** — fine for forwarding-only setups or sending to a fixed set of recipients. Verify each recipient address once with `aws ses verify-email-identity --email you@example.com`. 200 sends/day cap.
+- **Leave sandbox** — required to send to arbitrary recipients. Request via AWS Console → SES → Account dashboard → "Request production access". Approval takes a few hours.
+
+See [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md#3-choose-stay-in-the-ses-sandbox-or-leave-it) for the full breakdown.
 
 For full AWS details (receipt rules, SNS subscriptions, sandbox notes) → [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md).
 For deploy options (Railway / Docker / VPS) → [`docs/DEPLOY.md`](docs/DEPLOY.md).

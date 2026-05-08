@@ -57,7 +57,7 @@ Same story — install Node 23, run the three build steps above, put it behind n
 
 - [ ] `APP_URL` matches your public URL (used for email links + OAuth + SNS subscriptions)
 - [ ] DNS for the app domain resolves and TLS works
-- [ ] AWS SES is out of sandbox (otherwise sending to non-verified addresses 4xxs)
+- [ ] SES sandbox decision made — either out of sandbox (production access granted), or each recipient address verified via `aws ses verify-email-identity` (sending to unverified addresses 4xxs in sandbox)
 - [ ] SNS subscriptions show `Confirmed` (not `PendingConfirmation`) in the AWS console
 - [ ] First test send from the dashboard arrives at your inbox
 - [ ] First test inbound arrives at a verified domain → shows up in `/inbox`
