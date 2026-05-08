@@ -8,7 +8,7 @@
 
 It's a thin app on top of AWS SES. SES does the hard part (delivery, reputation, DKIM signing); Selfinbox gives you the UI, the multi-domain plumbing, the Postgres state, and a one-shot script to wire all of it together.
 
-> Battle-tested in production. Single-binary deploy. ~3000 LoC. MIT.
+> Battle-tested in production. Single-process deploy (one Node server serves both the API and the SPA). ~7K lines of TypeScript across `apps/api` (1.6K) and `apps/web` (5.5K). MIT.
 
 ---
 
@@ -26,12 +26,23 @@ What it's **not**: a hosted SaaS, a Postfix replacement, an enterprise mail serv
 
 ## Features
 
-- **Receive** — SES drops raw mail into S3 → SNS webhook → parsed and stored, optionally forwarded to a personal address
-- **Send** — through SES from the web inbox, or via per-domain SMTP creds your apps embed
-- **DNS** — generates MX/SPF/DKIM/DMARC records per domain, polls until verified, optional one-click Cloudflare auto-setup
-- **Bounces & complaints** — SES notifications wired to webhooks; hard bounces deactivate addresses, complaints suspend accounts
-- **Multi-tenant** — users, domains, addresses, catch-alls all isolated by user_id
-- **Single process** — Hono API serves the React SPA from the same port. No separate web service, no queue, no Redis
+- **Receive** — SES drops raw mail into S3 → SNS webhook → parsed and stored. Per-address forwarding to a personal inbox. Per-domain catch-all (`*@yourdomain.com`) with a one-click toggle.
+- **Send** — from the web inbox (compose, reply, forward) or via per-domain SMTP credentials your apps embed (Gmail "Send as" + Apple Mail + Thunderbird setup guides included).
+- **Auto DNS** — generates MX/SPF/DKIM/DMARC records per domain, polls until verified. Optional one-click Cloudflare provisioning via OAuth or API token.
+- **Dashboard** — at-a-glance counts (domains, addresses, sent/received this month) with 14-day sparklines and trend deltas, recent activity feed (inbound/outbound color-coded), pending-verification banner.
+- **Bounces & complaints** — SES notifications wired to webhooks; hard bounces auto-deactivate addresses, complaints suspend accounts.
+- **Multi-tenant** — users, domains, addresses, catch-alls all isolated by `user_id`. Public registration off by default — `REGISTRATION_ENABLED` env flag is the entire user-management surface.
+- **Single process** — one Node server, Postgres, AWS. No queue, no Redis, no separate web service.
+
+## What you'll use
+
+The web UI is a five-page SPA. Once you're set up:
+
+- **Dashboard** — personalized overview: unread count, active vs pending domains, sent/received counts with sparklines, recent activity, and a pending-verification banner that surfaces domains stuck on DNS.
+- **Inbox** — list of all messages (filterable by direction, read/unread, domain, address, search). Click a row to open the email; reply / forward / view raw headers / delete from the detail page. Floating compose panel for new outbound mail.
+- **Domains** — list view + per-domain detail. Domain detail shows DNS records as a copy-friendly table with verification status, an addresses list (add, delete, set forwarding target, display name), a catch-all toggle, the SMTP credentials sub-page, and a Recheck-DNS button.
+- **Setup wizard** — guided 5-step flow for adding a new domain end-to-end: enter domain → add DNS records (with Cloudflare auto-button if configured) → verify → first address → done.
+- **SMTP credentials** — per-domain server / port / username / password, with copy buttons and step-by-step setup guides for Gmail "Send as", Apple Mail, and Thunderbird.
 
 ## Architecture
 
@@ -91,7 +102,7 @@ aws ses verify-domain-dkim     --domain yourdomain.com
 (cd apps/web && npm run dev)       # SPA on :5173 (proxies API)
 ```
 
-Open `http://localhost:5173`, register the first account (set `REGISTRATION_ENABLED=true` first), add a domain, paste the generated DNS records at your registrar, and you're live.
+Open `http://localhost:5173`. Public registration is off by default — set `REGISTRATION_ENABLED=true` and restart the API to register your first account, then flip it back to `false`. From the dashboard: add a domain, paste the generated DNS records at your registrar (or click the Cloudflare auto-button if you use them), wait for verification, and you're live.
 
 **One gotcha — the SES sandbox:** new AWS accounts start in the SES sandbox, which only restricts *sending* (receiving works either way). You have two options:
 
@@ -175,9 +186,9 @@ A single-user deploy with a few hundred emails/month typically runs **under $1/m
 
 ## Brand / fork notes
 
-- The UI reads `VITE_BRAND_NAME` and `VITE_SUPPORT_EMAIL` at build time — set them to make it yours without touching code.
+- The UI reads `VITE_BRAND_NAME` and `VITE_SUPPORT_EMAIL` at build time — set them to make it yours without touching code. The dashboard, auth pages, page title, and footer all pick them up.
 - The landing page (`apps/web/src/pages/landing.tsx`) is generic — replace it or strip the `/` route in `App.tsx` if you don't want a public-facing front page on your deploy.
-- Internal identifiers (`@morelay/api` npm scope, `morelay-token` localStorage key) stayed as-is from the project's previous name. Renaming would invalidate existing sessions on running deploys; cosmetic only.
+- Internal identifiers in the codebase (`@morelay/api` npm scope, `morelay-token` localStorage key, `morelay` package name) are leftovers from the project's previous name. Renaming them is cosmetic and would invalidate existing sessions on a running deploy — left as-is intentionally.
 
 ## Development
 
