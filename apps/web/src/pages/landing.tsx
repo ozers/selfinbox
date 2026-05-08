@@ -99,21 +99,41 @@ function SandboxCallout() {
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-semibold text-foreground sm:text-lg">
-            Important: leave the SES sandbox
+            Decide: stay in the SES sandbox or leave it
           </h3>
           <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-            Every new AWS account starts in the <strong className="text-foreground">SES sandbox</strong> — you can only send to email addresses you've verified, capped at 200/day. To send to anyone, you have to <strong className="text-foreground">request production access</strong>. Approval typically takes a few hours.
+            Every new AWS account starts in the <strong className="text-foreground">SES sandbox</strong>. <strong className="text-foreground">Receiving mail works either way</strong> — sandbox only restricts <em>sending</em>: you can only send to email addresses verified in your SES account, capped at 200/day.
           </p>
-          <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-            <strong className="text-foreground">Do this now</strong>, before you finish setup, so it's done by the time you're ready to send. AWS Console → SES → Account dashboard → "Request production access". You can keep developing in sandbox mode while you wait — just verify your own personal email address as a recipient for testing.
-          </p>
+
+          <p className="mt-3 text-sm font-medium text-foreground">Two paths:</p>
+
+          <div className="mt-2 space-y-3 text-sm text-muted-foreground leading-relaxed">
+            <div className="rounded-lg border border-border/60 bg-card/40 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Stay in sandbox (zero cost, zero approval)</p>
+              <p className="mt-1.5">
+                Fine if you only forward incoming mail to your own Gmail, or only send to a fixed list of recipients. <strong className="text-foreground">No app-side changes</strong> — but every recipient address must be verified once:
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded bg-muted/40 px-3 py-2 text-xs font-mono text-foreground"><code>aws ses verify-email-identity --email you@gmail.com</code></pre>
+              <p className="mt-1.5">
+                The address gets a one-time confirmation email. Click the link, done — your deploy can now send to it.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-card/40 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Leave sandbox (send to anyone)</p>
+              <p className="mt-1.5">
+                Required if you'll send to arbitrary recipients (transactional mail to customers, newsletters, etc.). AWS Console → SES → Account dashboard → "Request production access". Approval takes a few hours. <strong className="text-foreground">Do this early</strong> so it's done by the time you need it.
+              </p>
+            </div>
+          </div>
+
           <a
             href="https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html"
             target="_blank"
             rel="noreferrer"
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
           >
-            Read AWS docs on production access
+            AWS docs on sandbox + production access
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -484,7 +504,7 @@ aws ses verify-domain-dkim     --domain yourdomain.com
               },
               {
                 q: "Do I need to leave the SES sandbox?",
-                a: "If you only send to verified addresses (testing, or forwarding to your own Gmail), no. To send to arbitrary recipients you'll need production access — request it in the SES console, takes a few hours to approve.",
+                a: "Depends on what you want. Receiving mail works exactly the same in sandbox or production — the limits only apply to sending. If you're fine staying in the sandbox (e.g. you only forward incoming mail to your own Gmail, or only send to a fixed list of recipients), no app-side config changes — but every recipient address has to be verified in SES first: `aws ses verify-email-identity --email you@gmail.com`. Each verified address gets a confirmation email; click the link and that address can receive mail from your deploy. Hard cap of 200 sends/day applies. To send to arbitrary recipients without per-address verification, request production access in the SES console (takes a few hours).",
               },
               {
                 q: "What domain registrars work?",

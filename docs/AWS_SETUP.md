@@ -70,13 +70,41 @@ aws ses set-identity-notification-topic --identity yourdomain.com \
   --notification-type Complaint --sns-topic $BOUNCE_ARN
 ```
 
-### 3. Leave the SES sandbox (production access)
+### 3. Choose: stay in the SES sandbox, or leave it
 
-New AWS accounts start in the SES sandbox: outbound is limited to verified addresses, hard-capped at 200/day. To send to arbitrary recipients you must request production access:
+New AWS accounts start in the **SES sandbox**. The restriction is *send-side only* — receiving mail works exactly the same in sandbox or production. The sandbox limits you to:
+
+- Sending only to email addresses you've explicitly verified in SES
+- 200 sends per 24 hours
+- 1 send per second
+
+Two valid setups depending on what you actually need:
+
+#### Option A — stay in sandbox (no approval needed)
+
+Right for: forwarding-only setups, personal use where you only ever send to a known list of recipients, hobby/dev deploys.
+
+No app-side configuration changes. Just verify each recipient address once:
+
+```bash
+aws ses verify-email-identity --email you@gmail.com --region $AWS_REGION
+aws ses verify-email-identity --email partner@example.com --region $AWS_REGION
+# ...one per recipient
+```
+
+Each address gets a one-time AWS confirmation email. Click the link in it. From then on, your deploy can send to that address (subject to the 200/day cap).
+
+If a user tries to send to an unverified address while in sandbox, SES returns `MessageRejected` with a clear error and the API surfaces it to the UI.
+
+#### Option B — leave sandbox (production access)
+
+Right for: transactional mail to customers, sending to arbitrary recipients, anything past 200/day.
 
 > AWS Console → SES → Account dashboard → "Request production access"
 
-Approval typically takes a few hours. Without this, your users can't send to anyone whose address isn't already verified in your account.
+Approval typically takes a few hours. AWS asks how you'll use SES, where your mailing list comes from, and how you handle bounces/complaints — Selfinbox handles bounces and complaints automatically (see `apps/api/src/routes/webhooks.ts`), so mention that in the form.
+
+You can keep developing in sandbox while waiting for approval — verify your own address as a recipient and test the flow end-to-end. Once approved, no app changes are needed; the limits just lift.
 
 ### 4. Region note
 
