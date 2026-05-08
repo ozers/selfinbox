@@ -81,7 +81,7 @@ The web UI is a five-page SPA. Once you're set up:
 | **Node 23** | API + Vite build | `node -v` |
 | **AWS CLI v2**, configured | provisioner script + domain verification | `aws sts get-caller-identity` |
 | **`jq`** | provisioner parses AWS responses | `jq --version` |
-| **Postgres database** | app state. [Neon](https://neon.tech) / [Supabase](https://supabase.com) / local — anything | `psql --version` if local |
+| **Postgres database** | app state. [Neon](https://neon.tech), [Supabase](https://supabase.com), Railway Postgres plugin, RDS, or local — any Postgres works (SSL is auto-detected) | `psql --version` if local |
 | **A domain you own** | with DNS you can edit at any registrar | — |
 
 > **About the SES sandbox.** New AWS accounts start in the SES sandbox, which only restricts *sending* — receiving works either way. **Stay in sandbox** is fine for forwarding-only setups or sending to a known list of recipients (verify each once with `aws ses verify-email-identity`, 200/day cap). **Leave sandbox** is needed for arbitrary outbound (request production access in the SES console, takes a few hours). Full breakdown: [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md#3-choose-stay-in-the-ses-sandbox-or-leave-it).
@@ -212,7 +212,7 @@ All config is environment variables. See [`.env.example`](.env.example) for the 
 
 | Variable | Required | Notes |
 |---|---|---|
-| `DATABASE_URL` | yes | Any Postgres. Schema auto-creates on boot. |
+| `DATABASE_URL` | yes | Any Postgres (Neon / Supabase / Railway / RDS / local). SSL auto-enables for non-localhost hosts. Schema auto-creates on boot. |
 | `JWT_SECRET` | yes | 32+ random chars. `openssl rand -base64 48` |
 | `APP_URL` | yes | Public URL. Used for OAuth + email verification links. |
 | `FROM_EMAIL` | yes | SES-verified sender for system mail (verify, password reset). |

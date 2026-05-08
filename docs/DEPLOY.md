@@ -26,7 +26,23 @@ Set `PORT` (default 3001) and all the env vars from `.env.example`.
 
 ## Railway
 
-Already set up — push to a Railway project linked to this repo. The root `railway.toml` runs the bundle build; provision a Postgres plugin and the `DATABASE_URL` is injected automatically.
+Already set up — push to a Railway project linked to this repo. The root `railway.toml` runs the bundle build; provision a Postgres plugin and the `DATABASE_URL` is injected automatically (no SSL config needed, the app auto-detects).
+
+## Postgres provider notes
+
+The app accepts any Postgres connection string. SSL is auto-enabled for non-localhost hosts and disabled for `localhost` / `127.0.0.1` / unix sockets. To force-disable SSL on a non-localhost host, append `?sslmode=disable` to the URL.
+
+Tested with:
+
+| Provider | Notes |
+|---|---|
+| **Neon** | Free tier is plenty for personal use. Use the connection string from the dashboard verbatim — it already includes `?sslmode=require`. |
+| **Supabase** | Use the **direct connection** (not the pooler) since the app holds a small connection pool itself. Format: `postgres://postgres:pass@db.xxxxx.supabase.co:5432/postgres`. |
+| **Railway Postgres plugin** | Auto-injected as `DATABASE_URL` on the same project. Zero config. |
+| **AWS RDS / GCP Cloud SQL** | Standard `postgres://user:pass@<endpoint>:5432/dbname`. Make sure the security group allows your app's egress IP. |
+| **Local** | `postgres://user:pass@localhost:5432/selfinbox`. Create the DB first; the app creates the tables. |
+
+Schema bootstraps on first boot — you don't need to run any migration step.
 
 ## Docker (rough sketch)
 
