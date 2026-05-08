@@ -159,10 +159,11 @@ export default function DomainDetailPage() {
         variants={item}
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
-        <div className="flex items-center gap-3">
-          <h1 className="font-mono text-lg font-bold">{domain.domain}</h1>
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className="min-w-0 truncate font-mono text-lg font-bold" title={domain.domain}>{domain.domain}</h1>
           <Badge
             variant={domain.status === "active" ? "success" : "warning"}
+            className="flex-shrink-0"
           >
             {domain.status}
           </Badge>

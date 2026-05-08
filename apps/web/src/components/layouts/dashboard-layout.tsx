@@ -199,7 +199,7 @@ export function DashboardLayout() {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col lg:ml-60">
+      <div className="flex min-w-0 flex-1 flex-col lg:ml-60">
         <header className="flex h-14 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5 text-foreground" />
@@ -212,8 +212,8 @@ export function DashboardLayout() {
           </Link>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-5xl">
+        <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
+          <div className="mx-auto min-w-0 max-w-5xl">
             <Outlet />
           </div>
         </main>
