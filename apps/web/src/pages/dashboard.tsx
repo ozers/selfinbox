@@ -152,15 +152,47 @@ export default function DashboardPage() {
   const sentTrend = trendPercent(sentLast14, sentPrev14)
   const recvTrend = trendPercent(recvLast14, recvPrev14)
 
-  // Onboarding state
-  const steps = [
-    { label: "Create your account", done: true },
-    { label: "Add your first domain", done: hasDomains },
-    { label: "Verify DNS records", done: hasActiveDomain },
-    { label: "Send your first email", done: hasSentEmails },
+  // Onboarding — actionable steps, each with a description + CTA target
+  const firstPendingDomain = pendingDomains[0]
+  const onboardingSteps: Array<{
+    label: string
+    description: string
+    done: boolean
+    cta?: { label: string; to: string }
+  }> = [
+    {
+      label: "Create your account",
+      description: "Welcome! You're signed in.",
+      done: true,
+    },
+    {
+      label: "Add your first domain",
+      description: "Connect a domain you own. Selfinbox generates DNS records for SES.",
+      done: hasDomains,
+      cta: { label: "Add domain", to: "/setup" },
+    },
+    {
+      label: "Verify DNS records",
+      description: firstPendingDomain
+        ? `Paste records at your registrar for ${firstPendingDomain.domain}, then we poll for verification.`
+        : "Paste the generated MX/SPF/DKIM/DMARC records at your registrar.",
+      done: hasActiveDomain,
+      cta: firstPendingDomain
+        ? { label: "Open domain", to: `/domains/${firstPendingDomain.id}` }
+        : hasDomains
+          ? { label: "View domains", to: "/domains" }
+          : undefined,
+    },
+    {
+      label: "Send your first email",
+      description: "Open the inbox and compose a test message to confirm everything works.",
+      done: hasSentEmails,
+      cta: { label: "Open inbox", to: "/inbox" },
+    },
   ]
-  const completedSteps = steps.filter((s) => s.done).length
+  const completedSteps = onboardingSteps.filter((s) => s.done).length
   const showOnboarding = completedSteps < 4
+  const nextPendingIndex = onboardingSteps.findIndex((s) => !s.done)
 
   // Smart subtitle
   const greeting = user?.name?.split(" ")[0] || "there"
@@ -269,44 +301,75 @@ export default function DashboardPage() {
         />
       </motion.div>
 
-      {/* Onboarding (compact, only if incomplete) */}
+      {/* Onboarding (only if incomplete) */}
       {showOnboarding && (
-        <motion.div variants={item} className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between gap-3">
+        <motion.div variants={item} className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold">Getting started</h2>
             </div>
-            <span className="text-xs font-mono text-muted-foreground">
-              {completedSteps}/{steps.length}
-            </span>
+            <div className="flex items-center gap-3">
+              <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-secondary sm:block">
+                <motion.div
+                  className="h-full rounded-full bg-primary"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(completedSteps / onboardingSteps.length) * 100}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+                />
+              </div>
+              <span className="font-mono text-xs text-muted-foreground">
+                {completedSteps}/{onboardingSteps.length}
+              </span>
+            </div>
           </div>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-            <motion.div
-              className="h-full rounded-full bg-primary"
-              initial={{ width: 0 }}
-              animate={{ width: `${(completedSteps / steps.length) * 100}%` }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
-            />
+          <div className="divide-y divide-border">
+            {onboardingSteps.map((step, i) => {
+              const isNext = i === nextPendingIndex
+              const inner = (
+                <div className={`flex items-start gap-3 px-5 py-4 transition-colors ${
+                  step.done ? "opacity-60" : isNext ? "bg-primary/[0.04]" : ""
+                } ${step.cta ? "hover:bg-muted/40" : ""}`}>
+                  <span className="mt-0.5 flex-shrink-0">
+                    {step.done ? (
+                      <CheckCircle className="h-5 w-5 text-status-active" />
+                    ) : isNext ? (
+                      <span className="relative flex h-5 w-5 items-center justify-center">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/30" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+                      </span>
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground/30" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-medium ${
+                      step.done ? "text-muted-foreground line-through" : isNext ? "text-foreground" : "text-foreground/80"
+                    }`}>
+                      {step.label}
+                    </p>
+                    {!step.done && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {step.description}
+                      </p>
+                    )}
+                  </div>
+                  {!step.done && step.cta && (
+                    <ArrowUpRight className={`mt-0.5 h-4 w-4 flex-shrink-0 ${
+                      isNext ? "text-primary" : "text-muted-foreground"
+                    }`} />
+                  )}
+                </div>
+              )
+              return !step.done && step.cta ? (
+                <Link key={i} to={step.cta.to} className="block">
+                  {inner}
+                </Link>
+              ) : (
+                <div key={i}>{inner}</div>
+              )
+            })}
           </div>
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-            {steps.map((step, i) => (
-              <li key={i} className="flex items-center gap-2 text-sm">
-                {step.done ? (
-                  <CheckCircle className="h-4 w-4 flex-shrink-0 text-status-active" />
-                ) : (
-                  <Circle className="h-4 w-4 flex-shrink-0 text-muted-foreground/30" />
-                )}
-                <span
-                  className={
-                    step.done ? "text-muted-foreground line-through" : "text-foreground"
-                  }
-                >
-                  {step.label}
-                </span>
-              </li>
-            ))}
-          </ul>
         </motion.div>
       )}
 
