@@ -191,10 +191,12 @@ export default function EmailDetailPage() {
         className="rounded-xl border border-border bg-card p-6"
       >
         {email.bodyHtml ? (
-          <div
-            className="prose prose-sm prose-invert max-w-none text-foreground/85 [&_a]:text-primary [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground"
-            dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
-          />
+          <div className="overflow-x-auto">
+            <div
+              className="prose prose-sm prose-invert max-w-none text-foreground/85 [&_a]:text-primary [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_img]:max-w-full [&_img]:h-auto [&_table]:max-w-full"
+              dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
+            />
+          </div>
         ) : (
           <div className="text-sm leading-relaxed text-foreground/85 space-y-1">
             {email.bodyText.split("\n").map((line, i) => {

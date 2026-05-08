@@ -189,32 +189,26 @@ export default function DashboardPage() {
                   whileHover={{ scale: 1.005 }}
                   className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/30"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       <span
                         className={
                           domain.status === "active"
-                            ? "mt-0.5 h-2.5 w-2.5 rounded-full bg-status-active"
-                            : "mt-0.5 h-2.5 w-2.5 rounded-full bg-status-pending animate-status-pulse"
+                            ? "mt-0.5 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-status-active"
+                            : "mt-0.5 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-status-pending animate-status-pulse"
                         }
                       />
-                      <div>
-                        <p className="font-mono text-sm font-medium">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-mono text-sm font-medium" title={domain.domain}>
                           {domain.domain}
                         </p>
-                        <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>
-                            {domain.addresses.length} address
-                            {domain.addresses.length !== 1 ? "es" : ""}
-                          </span>
-                          <span>&middot;</span>
-                          <span>
-                            {domain.status === "active" ? "142 sends" : "0 sends"}
-                          </span>
+                        <div className="mt-1.5 text-xs text-muted-foreground">
+                          {domain.addresses.length} address
+                          {domain.addresses.length !== 1 ? "es" : ""}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-shrink-0 items-center gap-2">
                       <Badge
                         variant={domain.status === "active" ? "success" : "warning"}
                       >
