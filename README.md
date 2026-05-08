@@ -68,51 +68,96 @@ The web UI is a five-page SPA. Once you're set up:
 - `apps/web` — React SPA (Vite, Tailwind v4, React Router)
 - `scripts/setup-aws.sh` — idempotent provisioner: S3 + SNS topics + IAM user + SES rule set
 
-## Quickstart
+## Getting started
 
-**Prerequisites:**
-- Node 23
-- A Postgres database (Neon / Supabase / Railway / RDS / local — anything)
-- An AWS account with credentials in your shell (`aws sts get-caller-identity` works)
-- `aws` CLI v2 and `jq` installed
-- A domain whose DNS you control
+End-to-end first run takes **~45 minutes** the first time (most of it waiting for DNS to propagate and possibly for SES production-access approval). Subsequent domains take ~5 minutes.
+
+**You'll end up with**: a running web inbox at `http://localhost:5173`, your first custom-domain address (e.g. `hello@yourdomain.com`) sending and receiving real mail through your own AWS account.
+
+### Before you start
+
+You need:
+
+- **Node 23** — `node -v` should print `v23.x`
+- **AWS CLI v2** — configured with credentials that can create S3 buckets, SNS topics, IAM users, and SES identities (`aws sts get-caller-identity` should print your account)
+- **`jq`** — for the AWS provisioner script to parse responses
+- **A Postgres database** — local, [Neon](https://neon.tech), [Supabase](https://supabase.com), or [Railway](https://railway.app) all work. Free tiers are plenty.
+- **A domain whose DNS you control** — any registrar (Namecheap, Cloudflare, GoDaddy, Route 53, etc.)
+
+> **About the SES sandbox** — new AWS accounts start in the SES sandbox, which only restricts *sending* (receiving works either way). For most personal self-hosts you can **stay in sandbox** and verify each recipient address once with `aws ses verify-email-identity --email you@example.com` (200 sends/day cap). For arbitrary outbound, request production access in the SES console (approval takes a few hours — start it early). Full breakdown in [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md#3-choose-stay-in-the-ses-sandbox-or-leave-it).
+
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/ozers/selfinbox
 cd selfinbox
-
-# 1. Install
 (cd apps/api && npm install)
 (cd apps/web && npm install)
+```
 
-# 2. Configure
+### 2. Configure environment
+
+```bash
 cp .env.example apps/api/.env
-$EDITOR apps/api/.env    # at minimum: DATABASE_URL, JWT_SECRET, FROM_EMAIL, AWS_*
+$EDITOR apps/api/.env
+```
 
-# 3. Provision AWS (S3 + SNS + IAM, idempotent)
+At minimum, fill in:
+
+- `DATABASE_URL` — your Postgres connection string. Schema auto-creates on boot.
+- `JWT_SECRET` — random 32+ chars. Generate with `openssl rand -base64 48`.
+- `FROM_EMAIL` — the address system mail (verify, password reset) sends from. Must be on a domain you'll verify in SES.
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` — leave keys blank for now, the provisioner script prints them in the next step.
+
+See [`.env.example`](.env.example) for the full annotated list.
+
+### 3. Provision AWS resources
+
+One idempotent script creates the S3 bucket, SNS topics, IAM user with least-privilege policy, and SES receipt rule set. Re-running skips anything that exists.
+
+```bash
 APP_URL=http://localhost:3001 ./scripts/setup-aws.sh
+```
 
-# 4. Verify a sender domain in SES (one-time per region)
+At the end it prints fresh `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` — paste them into `apps/api/.env`.
+
+### 4. Verify your sender domain in SES
+
+```bash
 aws ses verify-domain-identity --domain yourdomain.com
 aws ses verify-domain-dkim     --domain yourdomain.com
-# Add the printed records to your DNS, wait a few minutes.
+```
 
-# 5. Run
+Both commands print DNS records (a TXT for verification, three CNAMEs for DKIM). Add them to your registrar's DNS panel. SES marks the domain verified within a few minutes once they resolve.
+
+### 5. Boot the app
+
+```bash
+# in apps/api/.env, temporarily set REGISTRATION_ENABLED=true
 (cd apps/api && npm run dev) &     # API on :3001
 (cd apps/web && npm run dev)       # SPA on :5173 (proxies API)
 ```
 
-Open `http://localhost:5173`. Public registration is off by default — set `REGISTRATION_ENABLED=true` and restart the API to register your first account, then flip it back to `false`. From the dashboard: add a domain, paste the generated DNS records at your registrar (or click the Cloudflare auto-button if you use them), wait for verification, and you're live.
+Open `http://localhost:5173`, register your account. Then **set `REGISTRATION_ENABLED=false` and restart the API** — that's your auth wall.
 
-**One gotcha — the SES sandbox:** new AWS accounts start in the SES sandbox, which only restricts *sending* (receiving works either way). You have two options:
+### 6. Add a domain in the dashboard
 
-- **Stay in sandbox** — fine for forwarding-only setups or sending to a fixed set of recipients. Verify each recipient address once with `aws ses verify-email-identity --email you@example.com`. 200 sends/day cap.
-- **Leave sandbox** — required to send to arbitrary recipients. Request via AWS Console → SES → Account dashboard → "Request production access". Approval takes a few hours.
+In the UI, click **Add Domain**, enter the domain you verified in step 4. Selfinbox generates four DNS records (MX, SPF, DKIM CNAMEs, DMARC). Paste them into your registrar, or click the Cloudflare auto-button if you use Cloudflare and configured `CLOUDFLARE_API_TOKEN`.
 
-See [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md#3-choose-stay-in-the-ses-sandbox-or-leave-it) for the full breakdown.
+DNS propagation can take a few minutes to a few hours depending on your TTL. The dashboard polls automatically and flips the domain to **Active** when all records resolve.
 
-For full AWS details (receipt rules, SNS subscriptions, sandbox notes) → [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md).
-For deploy options (Railway / Docker / VPS) → [`docs/DEPLOY.md`](docs/DEPLOY.md).
+### 7. Send and receive your first email
+
+- **Outbound test** — open the inbox, click **Compose**, send to a recipient address (verified in SES if you're in sandbox, anyone if you're out).
+- **Inbound test** — send a message from any external mailbox to your new address. It should land in the inbox within seconds.
+
+That's it. Add more addresses, enable catch-all on the domain detail page, grab the per-domain SMTP credentials for outbound apps from the dashboard.
+
+### Going to production
+
+Local dev works the same as production, but you'll want a real public URL (for SES SNS webhooks to reach your API) and a process manager. See [`docs/DEPLOY.md`](docs/DEPLOY.md) for Railway, Docker, and VPS recipes.
+
+For the full AWS walkthrough (SES receipt rules, SNS subscription confirmation, region notes) see [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md).
 
 ## Configuration
 
