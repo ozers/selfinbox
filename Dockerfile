@@ -3,6 +3,9 @@ FROM node:23-slim AS build
 WORKDIR /app
 
 # Build args for Vite (baked into the SPA bundle at build time)
+# VITE_MODE=app (default, full self-host build) or `marketing` (landing only,
+# all other paths redirect to the GitHub repo — for selfinbox.ozersubasi.com).
+ARG VITE_MODE=app
 ARG VITE_BRAND_NAME=Selfinbox
 ARG VITE_SUPPORT_EMAIL=
 ARG VITE_API_URL=
@@ -13,6 +16,7 @@ RUN cd apps/web && npm install --legacy-peer-deps
 
 COPY apps/web apps/web
 RUN cd apps/web && \
+    VITE_MODE="$VITE_MODE" \
     VITE_BRAND_NAME="$VITE_BRAND_NAME" \
     VITE_SUPPORT_EMAIL="$VITE_SUPPORT_EMAIL" \
     VITE_API_URL="$VITE_API_URL" \

@@ -92,6 +92,34 @@ docker build \
 
 Same story — install Node 23, run the three build steps above, put it behind nginx/Caddy with a reverse proxy + TLS. Use `pm2` or systemd to keep the API running.
 
+## Marketing-only build (`VITE_MODE=marketing`)
+
+The SPA has two build modes, set at build time via `VITE_MODE`:
+
+| Mode | Routes | API needed? | Use case |
+|---|---|---|---|
+| `app` (default) | `/` → `/login` → dashboard, etc. | yes | Your private self-host — login + inbox |
+| `marketing` | `/` → landing only; all other paths redirect to the GitHub repo | no | Public marketing page (e.g. `selfinbox.ozersubasi.com`) |
+
+The marketing build is **pure static** — no API, no Postgres, no Docker. Build it and drop the output on any static host (Cloudflare Pages, Netlify, Vercel, GitHub Pages, S3 + CloudFront):
+
+```bash
+cd apps/web
+npm install --legacy-peer-deps
+VITE_MODE=marketing VITE_API_URL='' npx vite build
+# → apps/web/dist  (deploy this directory as-is)
+```
+
+For an SPA static host, make sure the catch-all rewrite points at `index.html` (Cloudflare Pages auto-detects; Netlify needs a `_redirects` line; Nginx needs `try_files $uri /index.html;`). The in-app catch-all then redirects unknown paths to the GitHub repo.
+
+You can also build a marketing image with Docker:
+
+```bash
+docker build --build-arg VITE_MODE=marketing -t selfinbox-marketing .
+```
+
+…but for marketing there's no point running the Node server — extract `/app/apps/web/dist` from the image and serve it statically instead.
+
 ## Post-deploy checklist
 
 - [ ] `APP_URL` matches your public URL (used for email links + OAuth + SNS subscriptions)

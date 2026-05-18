@@ -145,16 +145,16 @@ function SandboxCallout() {
 function HeroCTA({ className }: { className?: string }) {
   return (
     <div className={`flex flex-col sm:flex-row gap-2 ${className}`}>
-      <Link to="/login" className="flex-1">
-        <Button type="button" variant="hero" size="default" className="w-full">
-          Sign in
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </Link>
       <a href={REPO_URL} target="_blank" rel="noreferrer" className="flex-1">
-        <Button type="button" variant="outline" size="default" className="w-full">
+        <Button type="button" variant="hero" size="default" className="w-full">
           <Github className="h-4 w-4" />
           View on GitHub
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </a>
+      <a href="#how-it-works" className="flex-1">
+        <Button type="button" variant="outline" size="default" className="w-full">
+          Read the setup guide
         </Button>
       </a>
     </div>
@@ -198,19 +198,15 @@ export default function LandingPage() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
-            <a href={REPO_URL} target="_blank" rel="noreferrer" className="hidden sm:inline-flex">
-              <Button variant="ghost" size="icon" title="GitHub">
-                <Github className="h-4 w-4" />
-              </Button>
-            </a>
             <Button variant="ghost" size="icon" onClick={toggle} className="hidden sm:inline-flex">
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Link to="/login" className="hidden sm:inline-flex">
+            <a href={REPO_URL} target="_blank" rel="noreferrer" className="hidden sm:inline-flex">
               <Button variant="default" size="sm">
-                Sign in
+                <Github className="h-4 w-4" />
+                GitHub
               </Button>
-            </Link>
+            </a>
             {/* Mobile hamburger */}
             <Button
               variant="ghost"
@@ -237,15 +233,10 @@ export default function LandingPage() {
               </a>
             ))}
             <div className="mt-2 flex flex-col gap-1">
-              <Link to="/login" onClick={() => setMobileOpen(false)}>
-                <Button variant="default" size="default" className="w-full justify-start">
-                  Sign in
-                </Button>
-              </Link>
               <a href={REPO_URL} target="_blank" rel="noreferrer">
-                <Button variant="ghost" size="default" className="w-full justify-start">
+                <Button variant="default" size="default" className="w-full justify-start">
                   <Github className="h-4 w-4 mr-2" />
-                  GitHub
+                  View on GitHub
                 </Button>
               </a>
               <Button variant="ghost" size="default" onClick={toggle} className="justify-start">
@@ -450,16 +441,15 @@ aws ses verify-domain-dkim     --domain yourdomain.com
 
             <Step
               num="06"
-              title="Boot the app and create your first account"
-              description="Registration is closed by default. Open it briefly to sign yourself up, then close it again — that's your auth wall."
+              title="Create your first account and boot the app"
+              description="Public registration is off by default — that's the auth wall. Use the included script to create your user directly in the database, then start the dev servers."
             >
-              <Snippet>{`# in apps/api/.env, set REGISTRATION_ENABLED=true
+              <Snippet>{`npm run create-user                # prompts for name, email, password
 
 (cd apps/api && npm run dev) &     # API on :3001
 (cd apps/web && npm run dev)        # SPA on :5173
 
-# open http://localhost:5173, register, then set
-# REGISTRATION_ENABLED=false and restart the API`}</Snippet>
+# open http://localhost:5173 and log in`}</Snippet>
             </Step>
 
             <Step
