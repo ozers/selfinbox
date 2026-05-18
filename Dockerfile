@@ -10,8 +10,11 @@ ARG VITE_BRAND_NAME=Selfinbox
 ARG VITE_SUPPORT_EMAIL=
 ARG VITE_API_URL=
 
-# Web SPA
-COPY apps/web/package*.json apps/web/
+# Web SPA — drop the lockfile before install: Vite 8 + Rolldown ships
+# platform-specific native bindings as optional deps, and npm bug #4828
+# causes the Linux binding to be skipped when installing against a
+# lockfile generated on a different platform (e.g. macOS).
+COPY apps/web/package.json apps/web/
 RUN cd apps/web && npm install --legacy-peer-deps
 
 COPY apps/web apps/web

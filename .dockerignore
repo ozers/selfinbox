@@ -1,6 +1,7 @@
 **/node_modules
 **/dist
-apps/api/.env
+**/.env
+**/.env.local
 apps/api/public
 .git
 .gitignore
