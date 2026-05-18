@@ -15,6 +15,9 @@
 
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$ROOT/apps/api/.env"
+
 # ─── Config (override via env) ────────────────────────────────────────────────
 AWS_REGION="${AWS_REGION:-eu-west-1}"
 S3_BUCKET="${S3_INBOUND_BUCKET:-selfinbox-inbound}"
@@ -146,13 +149,25 @@ if [ -z "$EXISTING_KEYS" ]; then
   KEY_JSON=$(aws iam create-access-key --user-name "$IAM_USER")
   AKID=$(echo "$KEY_JSON" | jq -r '.AccessKey.AccessKeyId')
   SECRET=$(echo "$KEY_JSON" | jq -r '.AccessKey.SecretAccessKey')
-  echo
-  green "════════════════════════════════════════════════════════════════════"
-  green "  Add these to apps/api/.env  (shown ONCE — copy now):"
-  echo "    AWS_ACCESS_KEY_ID=$AKID"
-  echo "    AWS_SECRET_ACCESS_KEY=$SECRET"
-  green "════════════════════════════════════════════════════════════════════"
-  echo
+
+  if [ -f "$ENV_FILE" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' "s|^AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=$AKID|" "$ENV_FILE"
+      sed -i '' "s|^AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=$SECRET|" "$ENV_FILE"
+    else
+      sed -i "s|^AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=$AKID|" "$ENV_FILE"
+      sed -i "s|^AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=$SECRET|" "$ENV_FILE"
+    fi
+    green "  ✓ AWS credentials written to $ENV_FILE"
+  else
+    echo
+    green "════════════════════════════════════════════════════════════════════"
+    green "  apps/api/.env not found — copy these manually (shown ONCE):"
+    echo "    AWS_ACCESS_KEY_ID=$AKID"
+    echo "    AWS_SECRET_ACCESS_KEY=$SECRET"
+    green "════════════════════════════════════════════════════════════════════"
+    echo
+  fi
 else
   yellow "[skip] Access key(s) already exist for $IAM_USER ($EXISTING_KEYS) — re-use existing or rotate manually."
 fi

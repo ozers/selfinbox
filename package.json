@@ -6,6 +6,7 @@
   },
   "scripts": {
     "init": "./scripts/init.sh",
-    "aws:setup": "./scripts/setup-aws.sh"
+    "aws:setup": "./scripts/setup-aws.sh",
+    "create-user": "node apps/api/scripts/create-user.mjs"
   }
 }

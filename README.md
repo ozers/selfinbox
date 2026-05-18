@@ -86,7 +86,35 @@ The web UI is a five-page SPA. Once you're set up:
 
 > **About the SES sandbox.** New AWS accounts start in the SES sandbox, which only restricts *sending* — receiving works either way. **Stay in sandbox** is fine for forwarding-only setups or sending to a known list of recipients (verify each once with `aws ses verify-email-identity`, 200/day cap). **Leave sandbox** is needed for arbitrary outbound (request production access in the SES console, takes a few hours). Full breakdown: [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md#3-choose-stay-in-the-ses-sandbox-or-leave-it).
 
-### TL;DR — copy / paste
+### TL;DR — Docker (no Node or Postgres required)
+
+If you have Docker and an AWS account, this is the shortest path:
+
+```bash
+git clone https://github.com/ozers/selfinbox && cd selfinbox
+
+# 1. Bootstrap .env (generates JWT_SECRET, no npm install needed)
+cp .env.example apps/api/.env
+$EDITOR apps/api/.env   # fill in FROM_EMAIL, AWS_REGION — leave DATABASE_URL alone
+
+# 2. Provision AWS (needs aws cli + jq)
+APP_URL=http://localhost:3001 ./scripts/setup-aws.sh
+#    ↑ writes AWS_ACCESS_KEY_ID / SECRET directly into apps/api/.env
+
+# 3. Boot (builds the image, starts app + postgres)
+docker compose up --build -d
+
+# 4. Create your account
+docker compose run --rm app node scripts/create-user.mjs
+```
+
+Open <http://localhost:3001>. Add a domain in the dashboard → paste the generated DNS records at your registrar → done.
+
+SES domain verification (step 4 below) still needs the AWS CLI — that part is external to the app.
+
+---
+
+### TL;DR — Node (manual)
 
 If your prereqs are in place, the whole local setup is this block:
 
@@ -102,18 +130,21 @@ $EDITOR apps/api/.env
 
 # 3. Provision AWS resources (idempotent — S3 + SNS + IAM + SES rule)
 APP_URL=http://localhost:3001 npm run aws:setup
-#    paste the printed AWS_ACCESS_KEY_ID / SECRET into apps/api/.env
+#    writes AWS_ACCESS_KEY_ID / SECRET directly into apps/api/.env
 
 # 4. Verify your sender domain in SES, add the printed DNS records
 aws ses verify-domain-identity --domain yourdomain.com
 aws ses verify-domain-dkim     --domain yourdomain.com
 
-# 5. Run (set REGISTRATION_ENABLED=true once to register, then back to false)
+# 5. Create your account (no REGISTRATION_ENABLED toggle needed)
+npm run create-user
+
+# 6. Boot
 (cd apps/api && npm run dev) &
 (cd apps/web && npm run dev)
 ```
 
-Then open <http://localhost:5173> → register → add a domain in the dashboard → paste the four generated DNS records at your registrar → wait for verification.
+Then open <http://localhost:5173> → add a domain in the dashboard → paste the four generated DNS records at your registrar → wait for verification.
 
 Walkthrough below if you want what each step actually does.
 
@@ -175,27 +206,34 @@ aws ses verify-domain-dkim     --domain yourdomain.com
 
 Both commands print DNS records — one TXT (verification) and three CNAMEs (DKIM). Add them at your registrar. SES flips the identity to verified within a few minutes once DNS resolves.
 
-#### 5. Boot the app
+#### 5. Create your account
 
 ```bash
-# Temporarily allow registration so you can sign yourself up
-sed -i '' 's/REGISTRATION_ENABLED=.*/REGISTRATION_ENABLED=true/' apps/api/.env
+npm run create-user
+```
 
+Prompts for name, email, and password. Writes directly to the database — no `REGISTRATION_ENABLED` toggle needed. The created account is email-verified automatically (you skipped the email step, that's intentional for first-run).
+
+To invite someone later, run `npm run create-user` again (or pass flags: `npm run create-user -- --email they@example.com --name "Their Name" --password secret`).
+
+#### 6. Boot the app
+
+```bash
 (cd apps/api && npm run dev) &     # API on :3001
 (cd apps/web && npm run dev)       # SPA on :5173
 ```
 
-Open <http://localhost:5173>, click **Register**, create your account.
+Open <http://localhost:5173> and log in with the credentials you just created.
 
-Then **set `REGISTRATION_ENABLED=false` and restart the API** — that's your auth wall. (See [Creating users](#creating-users) for inviting more people later.)
+`REGISTRATION_ENABLED` stays `false` — the public sign-up form 403s unless you flip it. (See [Creating users](#creating-users) for the rationale.)
 
-#### 6. Add a domain in the dashboard
+#### 7. Add a domain in the dashboard
 
 Click **Add Domain**, enter the domain you verified in step 4. Selfinbox generates four DNS records (MX, SPF, three DKIM CNAMEs, DMARC) and shows them in a copy-friendly table. Paste them at your registrar — or click the **Cloudflare auto-button** if you use Cloudflare and set `CLOUDFLARE_API_TOKEN`.
 
 DNS propagation takes a few minutes (sometimes more, depending on your TTL). The dashboard polls in the background and flips the badge to **Active** when all records resolve.
 
-#### 7. Send your first email, receive your first email
+#### 8. Send your first email, receive your first email
 
 - **Outbound** — open the inbox → **Compose** → send to a recipient. In sandbox: must be a verified address. Out of sandbox: anyone.
 - **Inbound** — send a message from any external mailbox to `you@yourdomain.com`. It appears in the inbox within seconds.
@@ -238,12 +276,13 @@ Selfinbox is multi-user — one deploy can serve many people, each with their ow
 To create the first account (or invite someone later):
 
 ```bash
-# 1. Set REGISTRATION_ENABLED=true and restart the API
-# 2. Visit /register, sign up
-# 3. Set REGISTRATION_ENABLED=false and restart again
+npm run create-user
+# or with flags: npm run create-user -- --email they@example.com --name "Their Name" --password secret
 ```
 
-If you're the only user, leave `REGISTRATION_ENABLED=false` after step 3 and you're done. Want to add another person? Flip it briefly, have them register, flip it back. There's no admin UI — the env-var toggle is the auth wall.
+The script connects directly to your database and inserts the user — no server running, no `REGISTRATION_ENABLED` flip needed. The account is created email-verified.
+
+If you want anyone to self-register via the web UI, set `REGISTRATION_ENABLED=true`. Otherwise leave it `false` — the env-var toggle is the entire auth wall.
 
 ## Database schema
 

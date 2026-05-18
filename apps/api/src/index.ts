@@ -65,6 +65,27 @@ app.get("*", (c) => {
 
 const port = Number(process.env.PORT) || 3001;
 
+// Pre-boot env check — fail fast with an actionable message rather than a
+// cryptic AWS/DB error mid-request.
+{
+  const required = [
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "FROM_EMAIL",
+    "AWS_REGION",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "S3_INBOUND_BUCKET",
+  ] as const;
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length > 0) {
+    console.error("[boot] Missing required environment variables:");
+    for (const k of missing) console.error(`  ${k}`);
+    console.error("[boot] Edit apps/api/.env and fill them in, then restart.");
+    process.exit(1);
+  }
+}
+
 initDb()
   .then(() => {
     serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {

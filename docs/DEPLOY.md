@@ -44,25 +44,48 @@ Tested with:
 
 Schema bootstraps on first boot — you don't need to run any migration step.
 
-## Docker (rough sketch)
+## Docker
 
-No Dockerfile is included; here's a minimal one to crib from:
+A `Dockerfile` (multi-stage) and `docker-compose.yml` (app + postgres) are included at the repo root.
 
-```dockerfile
-FROM node:23-slim AS build
-WORKDIR /app
-COPY apps/web ./apps/web
-COPY apps/api ./apps/api
-RUN cd apps/web && npm install --legacy-peer-deps && VITE_API_URL='' npx vite build
-RUN cd apps/api && cp -r ../web/dist ./public && npm install && npm run build
+### Local / self-hosted
 
-FROM node:23-slim
-WORKDIR /app/apps/api
-COPY --from=build /app/apps/api ./
-ENV NODE_ENV=production
-ENV PORT=3001
-EXPOSE 3001
-CMD ["node", "dist/index.js"]
+```bash
+# Fill in FROM_EMAIL, AWS_* in apps/api/.env first (see README)
+docker compose up --build -d
+
+# Create your account
+docker compose run --rm app node scripts/create-user.mjs
+
+# Rebuild after code changes
+docker compose up --build -d
+```
+
+The compose file overrides `DATABASE_URL` to point at the bundled postgres service. Remove that override (or the whole `postgres` service) when using an external database.
+
+### VPS with external database
+
+```bash
+docker build -t selfinbox .
+
+docker run -d \
+  --name selfinbox \
+  --env-file apps/api/.env \
+  -e DATABASE_URL="postgres://user:pass@your-db-host:5432/selfinbox" \
+  -p 3001:3001 \
+  --restart unless-stopped \
+  selfinbox
+```
+
+### Branding at build time
+
+`VITE_BRAND_NAME` and `VITE_SUPPORT_EMAIL` are baked into the SPA bundle:
+
+```bash
+docker build \
+  --build-arg VITE_BRAND_NAME="My Inbox" \
+  --build-arg VITE_SUPPORT_EMAIL="hello@mydomain.com" \
+  -t selfinbox .
 ```
 
 ## VPS
