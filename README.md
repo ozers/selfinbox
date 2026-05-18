@@ -341,7 +341,7 @@ npm run dev      # vite
 npm run build    # tsc -b && vite build
 ```
 
-The production build serves `apps/web/dist` from the Hono API as static files (see `railway.toml`'s build command for the exact incantation).
+The production build serves `apps/web/dist` from the Hono API as static files (see the root `Dockerfile` for the exact build sequence).
 
 ## Contributing
 

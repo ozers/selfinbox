@@ -1,6 +1,6 @@
 # Deploy
 
-The repo is currently shipped on Railway (which the included `railway.toml` and `nixpacks.toml` target), but nothing in the code is Railway-specific. Anywhere that runs Node 23 + can reach Postgres + has outbound HTTPS to AWS will work.
+The repo ships a `Dockerfile` at the root that any Docker-aware host (Railway, Fly, Render, your own VPS) can build from. Anywhere that runs the resulting image + can reach Postgres + has outbound HTTPS to AWS will work. The alternative `apps/api/railway.toml` and `apps/web/railway.toml` files are kept for users who prefer the older split-service nixpacks pattern (API and SPA on separate Railway services).
 
 ## Single-process model
 
@@ -26,7 +26,7 @@ Set `PORT` (default 3001) and all the env vars from `.env.example`.
 
 ## Railway
 
-Already set up — push to a Railway project linked to this repo. The root `railway.toml` runs the bundle build; provision a Postgres plugin and the `DATABASE_URL` is injected automatically (no SSL config needed, the app auto-detects).
+Push to a Railway project linked to this repo — Railway auto-detects the root `Dockerfile` and builds from it (no `railway.toml` needed). Provision a Postgres plugin and `DATABASE_URL` is injected automatically (no SSL config needed, the app auto-detects). Set the remaining env vars from `.env.example` in the Railway dashboard. The container's `CMD` runs the API which serves the SPA on the same port.
 
 ## Postgres provider notes
 
