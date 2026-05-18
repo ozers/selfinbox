@@ -3,8 +3,9 @@ FROM node:23-slim AS build
 WORKDIR /app
 
 # Build args for Vite (baked into the SPA bundle at build time)
-# VITE_MODE=app (default, full self-host build) or `marketing` (landing only,
-# all other paths redirect to the GitHub repo — for selfinbox.ozersubasi.com).
+# VITE_MODE: `app` (default — strict private deploy, no public landing),
+#            `public` (landing at `/` + full app, owner bookmarks /login),
+#            `marketing` (landing only, static, all else redirects to GitHub).
 ARG VITE_MODE=app
 ARG VITE_BRAND_NAME=Selfinbox
 ARG VITE_SUPPORT_EMAIL=

@@ -323,7 +323,7 @@ A single-user deploy with a few hundred emails/month typically runs **under $1/m
 ## Brand / fork notes
 
 - The UI reads `VITE_BRAND_NAME` and `VITE_SUPPORT_EMAIL` at build time — set them to make it yours without touching code. The dashboard, auth pages, page title, and footer all pick them up.
-- Build modes via `VITE_MODE`: **`app`** (default) is the full self-host build — `/` redirects to `/login`, no public landing. **`marketing`** is landing-only — every non-landing path redirects to the GitHub repo, no API needed. Use `marketing` to deploy a static promo site separately (see [`docs/DEPLOY.md`](docs/DEPLOY.md#marketing-only-build-vite_modemarketing)).
+- Build modes via `VITE_MODE`: **`app`** (default) is strict private self-host — `/` redirects to `/login`, no public landing. **`public`** keeps the full app but shows the landing at `/` (no Sign In link, owner bookmarks `/login`) — good for a single domain that's both a public face and your private dashboard. **`marketing`** is landing-only, static, no API — for a separate promo site. See [`docs/DEPLOY.md`](docs/DEPLOY.md#build-modes-vite_mode).
 - Internal identifiers in the codebase (`@morelay/api` npm scope, `morelay-token` localStorage key, `morelay` package name) are leftovers from the project's previous name. Renaming them is cosmetic and would invalidate existing sessions on a running deploy — left as-is intentionally.
 
 ## Development

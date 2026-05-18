@@ -19,8 +19,16 @@ import EmailDetail from "@/pages/email-detail"
 import Settings from "@/pages/settings"
 import OAuthCloudflareDone from "@/pages/oauth-cloudflare-done"
 
-// Build mode: `app` (default — full self-host build with login + dashboard) or
-// `marketing` (landing only, all other paths redirect to the GitHub repo).
+// Build mode. Set at build time via VITE_MODE. Three values:
+//   app       — full self-host build. `/` redirects to `/login`. No public
+//               landing. Default. (Strict private deploy.)
+//   public    — full self-host build with a public landing at `/`. The
+//               landing has no Sign In link, so visitors can't reach the
+//               app — but the owner can bookmark `/login` and use the
+//               dashboard normally. (selfinbox.ozersubasi.com's model.)
+//   marketing — landing only. No login, no API. Every non-landing path
+//               redirects to the GitHub repo. Pure static, deploys to
+//               Cloudflare Pages / Netlify / etc. with no backend.
 const MODE = (import.meta.env.VITE_MODE as string) || "app"
 const REPO_URL = "https://github.com/ozers/selfinbox"
 
@@ -45,6 +53,16 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Root route — branches based on auth + whether this build shows a public
+// landing. Logged-in users always land on `/dashboard`; anonymous users
+// see the landing in `public` mode or get bounced to `/login` otherwise.
+function RootRoute({ showLanding }: { showLanding: boolean }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (user) return <Navigate to="/dashboard" replace />
+  return showLanding ? <Landing /> : <Navigate to="/login" replace />
+}
+
 function MarketingRoutes() {
   return (
     <Routes>
@@ -54,11 +72,10 @@ function MarketingRoutes() {
   )
 }
 
-function AppRoutes() {
+function AppRoutes({ landingAtRoot }: { landingAtRoot: boolean }) {
   return (
     <Routes>
-      {/* Root → login (or dashboard if already authenticated) */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<RootRoute showLanding={landingAtRoot} />} />
 
       {/* Auth pages (guest only) */}
       <Route element={<GuestRoute><AuthLayout /></GuestRoute>}>
@@ -95,7 +112,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      {MODE === "marketing" ? <MarketingRoutes /> : <AppRoutes />}
+      {MODE === "marketing" ? (
+        <MarketingRoutes />
+      ) : (
+        <AppRoutes landingAtRoot={MODE === "public"} />
+      )}
     </BrowserRouter>
   )
 }

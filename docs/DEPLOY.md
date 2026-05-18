@@ -92,16 +92,29 @@ docker build \
 
 Same story — install Node 23, run the three build steps above, put it behind nginx/Caddy with a reverse proxy + TLS. Use `pm2` or systemd to keep the API running.
 
-## Marketing-only build (`VITE_MODE=marketing`)
+## Build modes (`VITE_MODE`)
 
-The SPA has two build modes, set at build time via `VITE_MODE`:
+The SPA has three build modes, set at build time via `VITE_MODE`:
 
-| Mode | Routes | API needed? | Use case |
-|---|---|---|---|
-| `app` (default) | `/` → `/login` → dashboard, etc. | yes | Your private self-host — login + inbox |
-| `marketing` | `/` → landing only; all other paths redirect to the GitHub repo | no | Public marketing page (e.g. `selfinbox.ozersubasi.com`) |
+| Mode | `/` shows | Other paths | API needed? | Use case |
+|---|---|---|---|---|
+| `app` (default) | redirects to `/login` | normal | yes | Strict private self-host. No public landing — only the owner sees the login screen. |
+| `public` | the landing page | normal | yes | Public landing + private app on one domain. The landing has no Sign In link; the owner bookmarks `/login` to reach the dashboard. (`selfinbox.ozersubasi.com`'s model.) |
+| `marketing` | the landing page | redirect to the GitHub repo | no | Pure static landing. No app, no login, no backend — host on Cloudflare Pages / Netlify / S3. |
 
-The marketing build is **pure static** — no API, no Postgres, no Docker. Build it and drop the output on any static host (Cloudflare Pages, Netlify, Vercel, GitHub Pages, S3 + CloudFront):
+### `public` — landing + app on one deploy
+
+Build with the `public` flag and deploy normally (Dockerfile, Railway, your VPS):
+
+```bash
+docker build --build-arg VITE_MODE=public -t selfinbox .
+```
+
+Visitors hitting `/` see the marketing landing. The owner navigates to `/login` directly (or bookmarks `/dashboard`, `/inbox`, etc.) — once authenticated, `/` redirects to `/dashboard`. Set a strong password and keep `REGISTRATION_ENABLED=false` so the login URL alone doesn't grant access.
+
+### `marketing` — pure static landing
+
+No API, no Postgres, no Docker — drop the build output on any static host:
 
 ```bash
 cd apps/web
@@ -111,14 +124,6 @@ VITE_MODE=marketing VITE_API_URL='' npx vite build
 ```
 
 For an SPA static host, make sure the catch-all rewrite points at `index.html` (Cloudflare Pages auto-detects; Netlify needs a `_redirects` line; Nginx needs `try_files $uri /index.html;`). The in-app catch-all then redirects unknown paths to the GitHub repo.
-
-You can also build a marketing image with Docker:
-
-```bash
-docker build --build-arg VITE_MODE=marketing -t selfinbox-marketing .
-```
-
-…but for marketing there's no point running the Node server — extract `/app/apps/web/dist` from the image and serve it statically instead.
 
 ## Post-deploy checklist
 
