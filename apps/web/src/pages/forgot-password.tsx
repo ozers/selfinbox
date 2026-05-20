@@ -3,7 +3,6 @@ import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/toast"
 import { ArrowLeft } from "lucide-react"
 import { api } from "@/lib/api"
 
@@ -12,7 +11,6 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
-  const { toast } = useToast()
 
   function validate() {
     const newErrors: Record<string, string> = {}

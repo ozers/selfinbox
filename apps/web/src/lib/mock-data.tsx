@@ -54,6 +54,7 @@ const MOCK_DOMAIN: Domain = {
     address: `${a.local}@${DOMAIN}`,
     displayName: a.displayName,
     forwardingTo: null,
+    forwardingVerifiedAt: null,
     isCatchall: false,
     isActive: true,
   })),

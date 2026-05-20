@@ -59,9 +59,9 @@ export default function VerifyEmailPage() {
               Your email has been verified. You can now set up your first domain.
             </p>
           </div>
-          <Button variant="hero" className="w-full" asChild>
-            <Link to="/setup">Continue to Setup</Link>
-          </Button>
+          <Link to="/setup" className="block w-full">
+            <Button variant="hero" className="w-full">Continue to Setup</Button>
+          </Link>
         </>
       ) : (
         <>

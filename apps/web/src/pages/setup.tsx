@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,13 +9,10 @@ import { api } from "@/lib/api"
 import type { Domain, SmtpCredentialsReveal } from "@/lib/types"
 import { motion, AnimatePresence } from "framer-motion"
 import {
-  Globe,
   Copy,
   CheckCircle,
-  Send,
   ArrowRight,
   ArrowLeft,
-  Mail,
   Check,
   Eye,
   EyeOff,
@@ -66,7 +63,6 @@ type VerifyState = "idle" | "checking" | "verified" | "pending"
 export default function SetupPage() {
   const { theme, toggle } = useTheme()
   const { toast } = useToast()
-  const navigate = useNavigate()
 
   const [step, setStep] = useState(0)
 
@@ -101,7 +97,6 @@ export default function SetupPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   const displayDomain = domain.trim() || "yourdomain.com"
-  const fullEmail = `${emailPrefix.trim() || "name"}@${displayDomain}`
 
   const domainError = useMemo(() => (domainTouched ? validateDomain(domain) : null), [domain, domainTouched])
   const emailPrefixError = useMemo(() => (emailPrefixTouched ? validateEmailPrefix(emailPrefix) : null), [emailPrefix, emailPrefixTouched])

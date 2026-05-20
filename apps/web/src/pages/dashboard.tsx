@@ -41,7 +41,7 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" as const } },
 }
 
 // Inline SVG sparkline — buckets values into N bars from a series of timestamps
@@ -321,7 +321,7 @@ export default function DashboardPage() {
                   className="h-full rounded-full bg-primary"
                   initial={{ width: 0 }}
                   animate={{ width: `${(completedSteps / onboardingSteps.length) * 100}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+                  transition={{ duration: 0.5, ease: "easeOut" as const, delay: 0.2 }}
                 />
               </div>
               <span className="font-mono text-xs text-muted-foreground">
