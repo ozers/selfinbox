@@ -267,7 +267,11 @@ A single-user deploy with a few hundred emails/month typically runs **under $1/m
 - **Multi-region** — single SES region only.
 - **Outbound IP warmup** — SES handles its own reputation pool. If you need dedicated IPs, configure them in SES directly.
 - **Admin UI** — `REGISTRATION_ENABLED` env flag is the entire user-management surface. By design.
-- **Rate limiting** — auth endpoints have no built-in throttle. Put it behind Cloudflare, [`hono-rate-limiter`](https://github.com/rhinobase/hono-rate-limiter), or an nginx/Caddy `limit_req` directive.
+
+## Security
+
+- **Auth rate limiting** — `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` are throttled per-IP via an in-memory sliding window (8 login attempts / 15 min, 5 password resets / hour, 3 resend-verifications / hour). Single-process only — if you scale to multiple API replicas, front them with Cloudflare or swap the limiter for Redis.
+- **Recommended: Cloudflare in front** — DNS through Cloudflare with Bot Fight Mode enabled blocks automated scanners before they reach the API. Zero code change, free tier covers most personal use.
 
 ## Brand / fork notes
 

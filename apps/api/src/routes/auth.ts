@@ -6,10 +6,23 @@ import { createHash, randomBytes } from "node:crypto";
 import { SignJWT } from "jose";
 import sql from "../db.js";
 import { authMiddleware, getJwtSecret } from "../middleware/auth.js";
+import { rateLimit } from "../middleware/rate-limit.js";
 import { sendEmail, verifyEmailBody, resetPasswordBody } from "../lib/send-email.js";
 import { serializeUser } from "../serializers.js";
 
 const auth = new Hono<{ Variables: AppVariables }>();
+
+// Rate limits, tuned for single-user self-host. Brute-force / credential-
+// stuffing protection on the public endpoints; email-bombing protection on
+// the ones that send mail. Buckets are per-IP, per-route (separate scopes
+// so /login traffic doesn't consume /forgot-password budget).
+const MIN = 60_000;
+const HOUR = 60 * MIN;
+const loginLimit            = rateLimit({ windowMs: 15 * MIN, max: 8  });
+const registerLimit         = rateLimit({ windowMs: HOUR,     max: 5  });
+const passwordResetLimit    = rateLimit({ windowMs: HOUR,     max: 5  });
+const verifyEmailLimit      = rateLimit({ windowMs: 15 * MIN, max: 20 });
+const resendVerifyLimit     = rateLimit({ windowMs: HOUR,     max: 3  });
 
 async function createToken(userId: string) {
   return new SignJWT({ sub: userId })
@@ -26,7 +39,7 @@ function generateEmailToken() {
 }
 
 // POST /api/auth/register
-auth.post("/register", async (c) => {
+auth.post("/register", registerLimit, async (c) => {
   if (process.env.REGISTRATION_ENABLED !== "true") {
     return c.json({ error: "Registration is currently closed." }, 403);
   }
@@ -66,7 +79,7 @@ auth.post("/register", async (c) => {
 });
 
 // POST /api/auth/login
-auth.post("/login", async (c) => {
+auth.post("/login", loginLimit, async (c) => {
   const body = await c.req.json();
   const { email, password } = body;
 
@@ -155,7 +168,7 @@ auth.delete("/me", authMiddleware, async (c) => {
 });
 
 // POST /api/auth/forgot-password
-auth.post("/forgot-password", async (c) => {
+auth.post("/forgot-password", passwordResetLimit, async (c) => {
   const body = await c.req.json();
   const { email } = body;
 
@@ -181,7 +194,7 @@ auth.post("/forgot-password", async (c) => {
 });
 
 // POST /api/auth/reset-password
-auth.post("/reset-password", async (c) => {
+auth.post("/reset-password", passwordResetLimit, async (c) => {
   const body = await c.req.json();
   const { token, newPassword } = body;
 
@@ -209,7 +222,7 @@ auth.post("/reset-password", async (c) => {
 });
 
 // GET /api/auth/verify-email?token=...
-auth.get("/verify-email", async (c) => {
+auth.get("/verify-email", verifyEmailLimit, async (c) => {
   const token = c.req.query("token");
   if (!token) return c.json({ error: "Token is required" }, 400);
 
@@ -230,7 +243,7 @@ auth.get("/verify-email", async (c) => {
 });
 
 // POST /api/auth/resend-verification
-auth.post("/resend-verification", authMiddleware, async (c) => {
+auth.post("/resend-verification", authMiddleware, resendVerifyLimit, async (c) => {
   const userId = c.get("userId");
   const user = c.get("user") as any;
 
