@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-fg);
+  --color-border: var(--border-color);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-fg);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-fg);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-fg);
+  --color-destructive: var(--destructive);
+  --color-accent: var(--accent);
+
+  --color-status-active: var(--status-active);
+  --color-status-pending: var(--status-pending);
+  --color-status-error: var(--status-error);
+}
+
+:root {
+  --bg: #ffffff;
+  --fg: #0f172a;
+  --card: #ffffff;
+  --card-fg: #0f172a;
+  --border-color: #e2e8f0;
+  --muted: #f1f5f9;
+  --muted-fg: #64748b;
+  --primary: #2563eb;
+  --primary-fg: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-fg: #0f172a;
+  --destructive: #ef4444;
+  --accent: #0ea5e9;
+
+  --status-active: #22c55e;
+  --status-pending: #f59e0b;
+  --status-error: #ef4444;
+}
+
+.dark {
+  --bg: #0b0f1a;
+  --fg: #f1f5f9;
+  --card: #111827;
+  --card-fg: #f1f5f9;
+  --border-color: #1e293b;
+  --muted: #1e293b;
+  --muted-fg: #94a3b8;
+  --primary: #3b82f6;
+  --primary-fg: #ffffff;
+  --secondary: #1e293b;
+  --secondary-fg: #f1f5f9;
+  --destructive: #ef4444;
+  --accent: #38bdf8;
+
+  --status-active: #4ade80;
+  --status-pending: #fbbf24;
+  --status-error: #f87171;
+}
+
+* {
+  border-color: var(--border-color);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}

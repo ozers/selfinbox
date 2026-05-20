@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /register
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /domains
+Disallow: /inbox
+Disallow: /settings
+Disallow: /setup
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /oauth/
+
+Sitemap: https://selfinbox.ozersubasi.com/sitemap.xml

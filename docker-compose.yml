@@ -1,0 +1,34 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3001}:3001"
+    env_file: apps/api/.env
+    environment:
+      # Override DATABASE_URL to point at the bundled postgres service.
+      # Remove this line (or the whole postgres service) if you use an
+      # external database (Neon, Supabase, Railway, etc.).
+      DATABASE_URL: postgres://selfinbox:selfinbox@postgres:5432/selfinbox
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: selfinbox
+      POSTGRES_PASSWORD: selfinbox
+      POSTGRES_DB: selfinbox
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U selfinbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
