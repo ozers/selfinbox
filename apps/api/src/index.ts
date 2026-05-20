@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(__dirname, "../public");
 import { initDb } from "./db.js";
+import { securityHeaders } from "./middleware/security-headers.js";
 import auth from "./routes/auth.js";
 import domains from "./routes/domains.js";
 import emails from "./routes/emails.js";
@@ -20,6 +21,9 @@ import oauth from "./routes/oauth.js";
 import { startDnsPoller } from "./lib/dns-poller.js";
 
 const app = new Hono();
+
+// Apply baseline security headers to every response (SPA + API).
+app.use("*", securityHeaders());
 
 // CORS: by default accept the local Vite dev server. In production deploys
 // where the API serves the built SPA from the same origin, CORS isn't used at

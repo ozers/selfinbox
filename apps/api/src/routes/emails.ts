@@ -95,6 +95,14 @@ emails.post("/send", async (c) => {
     return c.json({ error: "Account suspended. Contact support." }, 403);
   }
 
+  // Require a verified owner email. Without this, an attacker who
+  // registers as e.g. `admin@victim.com` can mint a JWT and immediately
+  // relay outbound mail (still constrained by SES sandbox, but real abuse
+  // surface in a shared self-host deploy).
+  if (!user.email_verified_at) {
+    return c.json({ error: "Please verify your email before sending." }, 403);
+  }
+
   // Validate sender belongs to user
   const fromDomain = from.split("@")[1];
   const [domain] = await sql`

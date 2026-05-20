@@ -129,6 +129,25 @@ export async function initDb() {
   `;
 
   await sql`ALTER TABLE email_addresses ADD COLUMN IF NOT EXISTS display_name TEXT`;
+  // forwarding_verified_at: set when the destination address completes
+  // double-opt-in. The inbound webhook refuses to relay unless this is
+  // non-NULL, preventing the app from being used as a one-hop spam relay.
+  await sql`ALTER TABLE email_addresses ADD COLUMN IF NOT EXISTS forwarding_verified_at TIMESTAMPTZ`;
+
+  // forwarding_tokens: one row per pending forward-confirmation. Separate
+  // from email_tokens because it carries an address_id and a stable
+  // forwarding target snapshot — not tied to a user account.
+  await sql`
+    CREATE TABLE IF NOT EXISTS forwarding_tokens (
+      id TEXT PRIMARY KEY,
+      address_id TEXT NOT NULL REFERENCES email_addresses(id) ON DELETE CASCADE,
+      target_email TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
 
   // Attachment metadata lives on the emails row as JSONB. The binary blobs
   // stay in S3 under attachments/{userId}/{emailId}/{idx}. has_quarantined

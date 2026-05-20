@@ -5,18 +5,22 @@ import type { AppVariables } from "../lib/context.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "";
 
+// Fail loudly at module load. Both dev and prod require a real secret —
+// the previous fallback ("selfinbox-dev-secret-do-not-use-in-prod") was a
+// foot-gun: any code path that bypassed the boot guard would silently
+// sign with a hardcoded value. There is no safe default here.
 if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === "production") {
-    console.error("[auth] FATAL: JWT_SECRET env var is required in production");
-    process.exit(1);
-  }
-  console.warn("[auth] JWT_SECRET not set — using insecure dev fallback. DO NOT deploy without setting JWT_SECRET.");
+  throw new Error("[auth] JWT_SECRET environment variable is required");
 }
 
-const EFFECTIVE_SECRET = JWT_SECRET || "selfinbox-dev-secret-do-not-use-in-prod";
+if (JWT_SECRET.length < 32) {
+  throw new Error("[auth] JWT_SECRET must be at least 32 characters");
+}
+
+const ENCODED_SECRET = new TextEncoder().encode(JWT_SECRET);
 
 export function getJwtSecret() {
-  return new TextEncoder().encode(EFFECTIVE_SECRET);
+  return ENCODED_SECRET;
 }
 
 export async function authMiddleware(c: Context<{ Variables: AppVariables }>, next: Next) {

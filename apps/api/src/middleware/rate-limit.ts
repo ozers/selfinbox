@@ -20,14 +20,28 @@ setInterval(() => {
   }
 }, SWEEP_INTERVAL_MS).unref?.();
 
+// X-Forwarded-For / X-Real-IP are trivially forgeable. We only honor them
+// when TRUST_PROXY is explicitly enabled — for self-host deploys without a
+// reverse proxy this leaves the socket address as the only signal an
+// attacker can't spoof, preventing trivial rate-limit bypass by rotating
+// the XFF header on each request.
+//
+//   TRUST_PROXY=true        — honor XFF / X-Real-IP unconditionally
+//   TRUST_PROXY=<unset/0>   — ignore XFF / X-Real-IP (default)
+//
+// In a future iteration we could parse an allowlist of trusted proxy IPs.
+const TRUST_PROXY = (() => {
+  const v = (process.env.TRUST_PROXY ?? "").toLowerCase();
+  return v === "true" || v === "1" || v === "yes";
+})();
+
 function clientIp(c: Parameters<MiddlewareHandler>[0]): string {
-  // Behind a reverse proxy (Railway, Cloudflare, nginx) the real IP is in
-  // x-forwarded-for. We take the first entry — the original client. If
-  // missing (local dev) we fall back to the socket remote address.
-  const xff = c.req.header("x-forwarded-for");
-  if (xff) return xff.split(",")[0]!.trim();
-  const real = c.req.header("x-real-ip");
-  if (real) return real.trim();
+  if (TRUST_PROXY) {
+    const xff = c.req.header("x-forwarded-for");
+    if (xff) return xff.split(",")[0]!.trim();
+    const real = c.req.header("x-real-ip");
+    if (real) return real.trim();
+  }
   const env = c.env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined;
   return env?.incoming?.socket?.remoteAddress ?? "unknown";
 }

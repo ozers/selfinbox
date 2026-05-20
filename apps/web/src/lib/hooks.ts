@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { api } from "./api"
 import { useMockEnabled, useMockData } from "./mock-data"
-import type { Domain, Email, Usage, SmtpCredentials } from "./types"
+import type { Domain, Email, Usage, SmtpCredentials, SmtpCredentialsReveal } from "./types"
 
 // ── Generic fetch hook ─────────────────────────────────────────────
 
@@ -146,8 +146,11 @@ export function useSmtpCredentials(domainId: string | undefined) {
 }
 
 export function useSmtpActions() {
+  // Regenerate returns the plaintext password exactly once. The metadata
+  // endpoint (GET /smtp) no longer exposes it, so callers MUST capture
+  // the response here and display it before the value is lost.
   const regenerate = async (domainId: string) => {
-    return api.post<SmtpCredentials>(`/domains/${domainId}/smtp/regenerate`)
+    return api.post<SmtpCredentialsReveal>(`/domains/${domainId}/smtp/regenerate`)
   }
 
   return { regenerate }

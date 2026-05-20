@@ -29,6 +29,8 @@ export interface EmailAddress {
   address: string
   displayName: string | null
   forwardingTo: string | null
+  /** ISO timestamp when the destination confirmed via double-opt-in. */
+  forwardingVerifiedAt: string | null
   isCatchall: boolean
   isActive: boolean
 }
@@ -65,8 +67,16 @@ export interface SmtpCredentials {
   host: string
   port: number
   username: string
-  password: string
+  /** True when a password exists on the server. Plaintext is never sent by GET. */
+  hasPassword: boolean
   encryption: string
+}
+
+export interface SmtpCredentialsReveal extends Omit<SmtpCredentials, "hasPassword"> {
+  /** Plaintext password, returned once at regenerate time. Never persisted. */
+  password: string
+  /** True if the server still holds a legacy plaintext value (pre-encryption). */
+  legacy?: boolean
 }
 
 export interface Usage {

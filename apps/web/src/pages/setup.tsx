@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/toast"
 import { useTheme } from "@/lib/theme"
 import { api } from "@/lib/api"
-import type { Domain, SmtpCredentials } from "@/lib/types"
+import type { Domain, SmtpCredentialsReveal } from "@/lib/types"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Globe,
@@ -97,7 +97,7 @@ export default function SetupPage() {
   const [addingAddress, setAddingAddress] = useState(false)
 
   // Step 4
-  const [smtpCredentials, setSmtpCredentials] = useState<SmtpCredentials | null>(null)
+  const [smtpCredentials, setSmtpCredentials] = useState<SmtpCredentialsReveal | null>(null)
   const [showPassword, setShowPassword] = useState(false)
 
   const displayDomain = domain.trim() || "yourdomain.com"
@@ -202,7 +202,14 @@ export default function SetupPage() {
           displayName: displayName.trim() || undefined,
           forwardingTo: forwardTo.trim() || undefined,
         })
-        const creds = await api.get<SmtpCredentials>(`/domains/${createdDomain!.id}/smtp`)
+        // Calling regenerate (not GET) is the only way to obtain the
+        // plaintext password — the GET endpoint never returns it. We're
+        // in the onboarding flow so the user has never seen the value;
+        // regenerating immediately is equivalent to revealing the freshly-
+        // created one.
+        const creds = await api.post<SmtpCredentialsReveal>(
+          `/domains/${createdDomain!.id}/smtp/regenerate`,
+        )
         setSmtpCredentials(creds)
         setStep(4)
       } catch (err: any) {

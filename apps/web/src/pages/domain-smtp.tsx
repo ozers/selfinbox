@@ -39,6 +39,10 @@ export default function DomainSmtpPage() {
   const [openGuide, setOpenGuide] = useState<string | null>(null)
   const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
+  // Plaintext password is returned only by the regenerate endpoint and only
+  // once. We keep it in component state so the user has a chance to copy it
+  // before navigating away — never persisted to storage.
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null)
 
   const handleCopy = (value: string, field: string) => {
     navigator.clipboard.writeText(value)
@@ -54,10 +58,16 @@ export default function DomainSmtpPage() {
   const handleRegenerate = async () => {
     setRegenerating(true)
     try {
-      await regenerate(id!)
+      const reveal = await regenerate(id!)
+      setRevealedPassword(reveal.password)
+      setShowPassword(true)
       await refetch()
       setRegenerateDialogOpen(false)
-      toast({ type: "success", title: "Credentials regenerated!" })
+      toast({
+        type: "success",
+        title: "Credentials regenerated",
+        description: "Copy the password now — it will not be shown again.",
+      })
     } catch {
       toast({ type: "error", title: "Failed to regenerate credentials." })
     } finally {
@@ -183,7 +193,9 @@ export default function DomainSmtpPage() {
           </div>
         ))}
 
-        {/* Password field */}
+        {/* Password field \u2014 value is only present immediately after a
+            regenerate. The server no longer returns it on GET, so showing
+            "Regenerate to reveal" is the steady-state. */}
         {smtpCredentials && (
           <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
             <div className="min-w-0 flex-1">
@@ -191,37 +203,41 @@ export default function DomainSmtpPage() {
                 Password
               </p>
               <p className="mt-1 font-mono text-sm break-all">
-                {showPassword
-                  ? smtpCredentials.password
-                  : "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}
+                {revealedPassword
+                  ? (showPassword
+                      ? revealedPassword
+                      : "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022")
+                  : smtpCredentials.hasPassword
+                    ? "Regenerate to reveal a new password"
+                    : "No password set \u2014 regenerate to create one"}
               </p>
             </div>
-            <div className="flex flex-shrink-0 items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() =>
-                  handleCopy(smtpCredentials.password, "password")
-                }
-              >
-                {copiedField === "password" ? (
-                  <Check className="h-4 w-4 text-status-active" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+            {revealedPassword && (
+              <div className="flex flex-shrink-0 items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleCopy(revealedPassword, "password")}
+                >
+                  {copiedField === "password" ? (
+                    <Check className="h-4 w-4 text-status-active" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </motion.div>

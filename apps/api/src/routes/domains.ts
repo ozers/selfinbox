@@ -11,8 +11,73 @@ import { ses, SES_REGION } from "../lib/aws.js";
 import { verifyDomainDns } from "../lib/dns-verify.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { serializeDomain, serializeAddress } from "../serializers.js";
+import { encrypt } from "../lib/secret-box.js";
+import { sendEmail, addressVerifyBody } from "../lib/send-email.js";
+import { createHash, randomBytes } from "node:crypto";
 
 const domains = new Hono<{ Variables: AppVariables }>();
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function generateForwardingToken() {
+  const raw = randomBytes(32).toString("hex");
+  const hash = createHash("sha256").update(raw).digest("hex");
+  return { raw, hash };
+}
+
+async function startForwardingVerification(
+  addressId: string,
+  forwardingTarget: string,
+  sourceAddress: string,
+) {
+  // Invalidate any prior pending tokens for this address before issuing a
+  // new one. Prevents a previously-leaked link from confirming a freshly
+  // re-targeted forwarder.
+  await sql`DELETE FROM forwarding_tokens WHERE address_id = ${addressId} AND used_at IS NULL`;
+  const { raw, hash } = generateForwardingToken();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await sql`
+    INSERT INTO forwarding_tokens (id, address_id, target_email, token_hash, expires_at)
+    VALUES (${crypto.randomUUID()}, ${addressId}, ${forwardingTarget}, ${hash}, ${expiresAt})
+  `;
+  sendEmail(forwardingTarget, "Confirm email forwarding", addressVerifyBody(raw, sourceAddress)).catch((err) =>
+    console.error("[domains/forwarding] confirmation send failed:", err?.message ?? err),
+  );
+}
+
+// Public confirmation endpoint — clicked from the email. Marks the
+// forwarding destination as verified and lets inbound emails relay.
+//
+// Mounted before the authMiddleware so it does not require a session.
+domains.get("/forwarding/confirm", async (c) => {
+  const token = c.req.query("token");
+  if (!token) return c.json({ error: "Token is required" }, 400);
+
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const [record] = await sql`
+    SELECT * FROM forwarding_tokens WHERE token_hash = ${tokenHash} AND used_at IS NULL
+  `;
+  if (!record) return c.json({ error: "Invalid or expired token" }, 400);
+  if (new Date(record.expires_at) < new Date()) {
+    return c.json({ error: "Token has expired" }, 400);
+  }
+
+  await sql.begin(async (tx) => {
+    // Re-check inside the transaction in case the target was changed
+    // between when the link was issued and clicked — only confirm if the
+    // address still forwards to the same target.
+    const [addr] = await tx`SELECT forwarding_to FROM email_addresses WHERE id = ${record.address_id}`;
+    if (!addr || addr.forwarding_to !== record.target_email) {
+      throw new Error("Forwarding target changed before confirmation");
+    }
+    await tx`UPDATE email_addresses SET forwarding_verified_at = NOW() WHERE id = ${record.address_id}`;
+    await tx`UPDATE forwarding_tokens SET used_at = NOW() WHERE id = ${record.id}`;
+  }).catch((err) => {
+    console.warn("[domains/forwarding] confirm aborted:", err?.message ?? err);
+  });
+
+  return c.json({ message: "Forwarding confirmed" });
+});
 
 domains.use("*", authMiddleware);
 
@@ -94,9 +159,10 @@ domains.post("/", async (c) => {
   const smtpHost = process.env.SMTP_HOST || `email-smtp.${SES_REGION}.amazonaws.com`;
   const smtpPort = Number(process.env.SMTP_PORT_EXTERNAL) || 587;
   const smtpPassword = `mrl_sk_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
+  const smtpPasswordStored = encrypt(smtpPassword);
   await sql`
     INSERT INTO smtp_credentials (id, domain_id, host, port, username, password, encryption)
-    VALUES (${crypto.randomUUID()}, ${domainId}, ${smtpHost}, ${smtpPort}, ${`postmaster@${domainName}`}, ${smtpPassword}, 'STARTTLS')
+    VALUES (${crypto.randomUUID()}, ${domainId}, ${smtpHost}, ${smtpPort}, ${`postmaster@${domainName}`}, ${smtpPasswordStored}, 'STARTTLS')
   `;
 
   const result = await getDomainWithRelations(domainId);
@@ -176,13 +242,25 @@ domains.post("/:id/addresses", async (c) => {
     return c.json({ error: "Prefix is required" }, 400);
   }
 
+  // Validate forwarding target shape before storing — prevents obviously
+  // malformed values from ever reaching SES, and matches the public
+  // confirmation flow's expectations.
+  const normalizedForward = forwardingTo ? String(forwardingTo).toLowerCase().trim() : null;
+  if (normalizedForward && (!EMAIL_RE.test(normalizedForward) || normalizedForward.length > 254)) {
+    return c.json({ error: "Invalid forwarding email" }, 400);
+  }
+
   const address = isCatchall ? `*@${domain.domain}` : `${prefix}@${domain.domain}`;
   const id = crypto.randomUUID();
 
   await sql`
     INSERT INTO email_addresses (id, domain_id, address, forwarding_to, is_catchall, display_name)
-    VALUES (${id}, ${domainId}, ${address}, ${forwardingTo || null}, ${!!isCatchall}, ${displayName || null})
+    VALUES (${id}, ${domainId}, ${address}, ${normalizedForward}, ${!!isCatchall}, ${displayName || null})
   `;
+
+  if (normalizedForward) {
+    await startForwardingVerification(id, normalizedForward, address);
+  }
 
   const [created] = await sql`SELECT * FROM email_addresses WHERE id = ${id}`;
   return c.json(serializeAddress(created), 201);
