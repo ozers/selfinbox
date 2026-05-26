@@ -1,5 +1,7 @@
 import { Hono } from "hono";
+import { setCookie, getCookie, deleteCookie } from "hono/cookie";
 import { SignJWT, jwtVerify } from "jose";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { AppVariables } from "../lib/context.js";
 import sql from "../db.js";
 import { authMiddleware, getJwtSecret } from "../middleware/auth.js";
@@ -9,9 +11,26 @@ const oauth = new Hono<{ Variables: AppVariables }>();
 
 const CF_AUTH_URL = "https://dash.cloudflare.com/oauth2/auth";
 const CF_TOKEN_URL = "https://dash.cloudflare.com/oauth2/token";
+const OAUTH_STATE_COOKIE = "sb_oauth_cf";
+const OAUTH_COOKIE_PATH = "/api/oauth/cloudflare";
 
 function getAppUrl() {
   return (process.env.APP_URL || "http://localhost:3001").replace(/\/$/, "");
+}
+
+function isHttpsAppUrl() {
+  return (process.env.APP_URL || "").startsWith("https://");
+}
+
+// Constant-time comparison of two hex strings of equal expected length.
+// Returns false if either input is malformed.
+function safeHexEqual(a: string, b: string): boolean {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+  } catch {
+    return false;
+  }
 }
 
 // GET /api/oauth/cloudflare/authorize  (protected — called by frontend)
@@ -28,11 +47,25 @@ oauth.get("/cloudflare/authorize", authMiddleware, async (c) => {
   const [domain] = await sql`SELECT id FROM domains WHERE id = ${domainId} AND user_id = ${userId}`;
   if (!domain) return c.json({ error: "Domain not found" }, 404);
 
-  // Sign a short-lived state JWT containing domainId + userId
-  const state = await new SignJWT({ domainId, userId })
+  // Bind the OAuth flow to the initiating browser. Without this, the
+  // callback has no way to tell whether the Cloudflare-authenticated
+  // identity belongs to the same person who minted the state JWT — and an
+  // attacker could phish a victim into completing the consent step, causing
+  // the server to write attacker-supplied DNS records to the victim's zone.
+  const nonce = randomBytes(32).toString("hex");
+
+  const state = await new SignJWT({ domainId, userId, nonce })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("10m")
     .sign(getJwtSecret());
+
+  setCookie(c, OAUTH_STATE_COOKIE, nonce, {
+    httpOnly: true,
+    secure: isHttpsAppUrl(),
+    sameSite: "Lax",
+    path: OAUTH_COOKIE_PATH,
+    maxAge: 600,
+  });
 
   const redirectUri = `${getAppUrl()}/api/oauth/cloudflare/callback`;
 
@@ -63,14 +96,27 @@ oauth.get("/cloudflare/callback", async (c) => {
     return c.redirect(`${doneUrl}?error=missing_params`);
   }
 
-  // Verify state JWT
+  // Verify state JWT and require the per-flow nonce cookie set at
+  // /authorize. The cookie binds the callback to the same browser that
+  // initiated the flow, defeating the login-CSRF / connect-flow attack
+  // where an attacker phishes a victim into completing OAuth consent.
   let domainId: string;
   let userId: string;
+  let nonceFromState: string;
   try {
     const { payload } = await jwtVerify(state, getJwtSecret());
     domainId = payload.domainId as string;
     userId = payload.userId as string;
+    nonceFromState = payload.nonce as string;
   } catch {
+    return c.redirect(`${doneUrl}?error=invalid_state`);
+  }
+
+  const cookieNonce = getCookie(c, OAUTH_STATE_COOKIE);
+  // Always clear the cookie before continuing — single-use semantics.
+  deleteCookie(c, OAUTH_STATE_COOKIE, { path: OAUTH_COOKIE_PATH });
+
+  if (!nonceFromState || !cookieNonce || !safeHexEqual(nonceFromState, cookieNonce)) {
     return c.redirect(`${doneUrl}?error=invalid_state`);
   }
 

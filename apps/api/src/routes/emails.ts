@@ -6,7 +6,7 @@ import sql from "../db.js";
 import { ses, s3, S3_INBOUND_BUCKET } from "../lib/aws.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { serializeEmail } from "../serializers.js";
-import { INLINE_IMAGE_MIMES, type AttachmentMeta } from "../lib/attachments.js";
+import { INLINE_IMAGE_MIMES, s3Key, type AttachmentMeta } from "../lib/attachments.js";
 
 const emails = new Hono<{ Variables: AppVariables }>();
 
@@ -72,7 +72,7 @@ emails.get("/:id", async (c) => {
   }
 
   if (!email.is_read) {
-    await sql`UPDATE emails SET is_read = true WHERE id = ${emailId}`;
+    await sql`UPDATE emails SET is_read = true WHERE id = ${emailId} AND user_id = ${userId}`;
     email.is_read = true;
   }
 
@@ -191,14 +191,21 @@ emails.get("/:id/attachments/:idx", async (c) => {
   const wantsInline = c.req.query("inline") === "1";
   const allowInline = wantsInline && att.isInline && INLINE_IMAGE_MIMES.has(att.contentType) && !att.quarantined;
 
+  // Re-derive the S3 key from the authenticated (userId, emailId, idx) tuple
+  // rather than trusting the stored value in attachments_meta. The current
+  // write path is webhook-only, but treating the stored key as authoritative
+  // would convert any future user-writable code path on attachments_meta
+  // into a cross-tenant read primitive. One-line defense in depth.
+  const key = s3Key(userId, emailId, idx);
+
   let body: Buffer;
   try {
-    const obj = await s3.send(new GetObjectCommand({ Bucket: S3_INBOUND_BUCKET, Key: att.s3Key }));
+    const obj = await s3.send(new GetObjectCommand({ Bucket: S3_INBOUND_BUCKET, Key: key }));
     const bytes = await obj.Body?.transformToByteArray();
     if (!bytes) return c.json({ error: "Attachment payload empty" }, 500);
     body = Buffer.from(bytes);
   } catch (err) {
-    console.error(`[emails/attachments] S3 fetch failed for ${att.s3Key}:`, err);
+    console.error(`[emails/attachments] S3 fetch failed for ${key}:`, err);
     return c.json({ error: "Attachment unavailable" }, 502);
   }
 

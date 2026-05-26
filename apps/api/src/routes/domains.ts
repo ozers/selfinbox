@@ -19,6 +19,24 @@ const domains = new Hono<{ Variables: AppVariables }>();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Strip RFC 5322 mailbox-syntax specials and bidi controls from a display
+// name before it gets interpolated into an outbound `From` Source. Without
+// this, a sender can register `display_name = "Bank <security@bank.com>"`
+// and have lenient MUAs render the spoofed angle-addr as the From line.
+function sanitizeDisplayName(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "string") return null;
+  let s = raw.normalize("NFKC");
+  // Drop control chars + bidi overrides (U+202A..U+202E, U+2066..U+2069).
+  s = s.replace(/[\x00-\x1f\x7f‪-‮⁦-⁩]/g, "");
+  // Strip RFC 5322 specials that would let the value smuggle a second
+  // address or break out of the phrase context.
+  s = s.replace(/[<>"\\;,()\[\]:@]/g, "");
+  s = s.replace(/\s+/g, " ").trim();
+  if (!s) return null;
+  return s.slice(0, 100);
+}
+
 function generateForwardingToken() {
   const raw = randomBytes(32).toString("hex");
   const hash = createHash("sha256").update(raw).digest("hex");
@@ -252,10 +270,11 @@ domains.post("/:id/addresses", async (c) => {
 
   const address = isCatchall ? `*@${domain.domain}` : `${prefix}@${domain.domain}`;
   const id = crypto.randomUUID();
+  const cleanDisplayName = sanitizeDisplayName(displayName);
 
   await sql`
     INSERT INTO email_addresses (id, domain_id, address, forwarding_to, is_catchall, display_name)
-    VALUES (${id}, ${domainId}, ${address}, ${normalizedForward}, ${!!isCatchall}, ${displayName || null})
+    VALUES (${id}, ${domainId}, ${address}, ${normalizedForward}, ${!!isCatchall}, ${cleanDisplayName})
   `;
 
   if (normalizedForward) {

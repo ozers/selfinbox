@@ -88,7 +88,7 @@ function isActiveMime(mime: string): boolean {
 
 // ── S3 ───────────────────────────────────────────────────────────────────────
 
-function s3Key(userId: string, emailId: string, idx: number): string {
+export function s3Key(userId: string, emailId: string, idx: number): string {
   return `attachments/${userId}/${emailId}/${idx}`;
 }
 

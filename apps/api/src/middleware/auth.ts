@@ -34,14 +34,23 @@ export async function authMiddleware(c: Context<{ Variables: AppVariables }>, ne
   try {
     const { payload } = await jwtVerify(token, getJwtSecret());
     const userId = payload.sub as string;
+    const tokenVer = typeof payload.ver === "number" ? payload.ver : 0;
 
     const [user] = await sql`
-      SELECT id, name, email, email_verified_at, suspended_at, created_at
+      SELECT id, name, email, email_verified_at, suspended_at, created_at, token_version
       FROM users WHERE id = ${userId}
     `;
 
     if (!user) {
       return c.json({ error: "User not found" }, 401);
+    }
+
+    // Reject tokens issued before the user's most recent credential rotation
+    // (password reset, password change, email change). Prevents a one-time
+    // JWT compromise from converting into a 7-day session that survives the
+    // user's recovery action.
+    if ((user.token_version ?? 0) !== tokenVer) {
+      return c.json({ error: "Invalid token" }, 401);
     }
 
     c.set("user", user);

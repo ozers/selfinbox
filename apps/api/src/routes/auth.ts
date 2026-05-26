@@ -31,8 +31,11 @@ const passwordResetLimit    = rateLimit({ windowMs: HOUR,     max: 5  });
 const verifyEmailLimit      = rateLimit({ windowMs: 15 * MIN, max: 20 });
 const resendVerifyLimit     = rateLimit({ windowMs: HOUR,     max: 3  });
 
-async function createToken(userId: string) {
-  return new SignJWT({ sub: userId })
+async function createToken(userId: string, tokenVersion: number) {
+  // `ver` is compared in authMiddleware against users.token_version. Bumping
+  // the column on any credential-rotation event invalidates every existing
+  // JWT for that user, so a stolen token cannot outlive the user's recovery.
+  return new SignJWT({ sub: userId, ver: tokenVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
@@ -106,7 +109,7 @@ auth.post("/register", registerLimit, async (c) => {
     SELECT id, name, email, email_verified_at, suspended_at, created_at FROM users WHERE id = ${id}
   `;
 
-  const token = await createToken(id);
+  const token = await createToken(id, 0);
   return c.json({ token, user: serializeUser(user) }, 201);
 });
 
@@ -126,7 +129,7 @@ auth.post("/login", loginLimit, async (c) => {
     return c.json({ error: "Invalid email or password" }, 401);
   }
 
-  const token = await createToken(row.id);
+  const token = await createToken(row.id, row.token_version ?? 0);
   return c.json({ token, user: serializeUser(row) });
 });
 
@@ -141,7 +144,7 @@ auth.put("/me", authMiddleware, async (c) => {
   const userId = c.get("userId");
   const current = c.get("user") as any;
   const body = await c.req.json();
-  const { name, email } = body;
+  const { name, email, currentPassword } = body;
 
   if (!name && !email) {
     return c.json({ error: "Name or email is required" }, 400);
@@ -164,19 +167,39 @@ auth.put("/me", authMiddleware, async (c) => {
   // pivot the "verified" status onto a brand-new attacker-controlled inbox.
   const emailChanged = normalizedEmail !== null && normalizedEmail !== current.email;
 
+  // Require the current password to move the recovery email. Without this,
+  // a single stolen JWT is enough to rebind the account to an attacker
+  // inbox and lock the legitimate owner out via /forgot-password.
+  if (emailChanged) {
+    if (!currentPassword || typeof currentPassword !== "string") {
+      return c.json({ error: "Current password is required to change email" }, 400);
+    }
+    const [row] = await sql`SELECT password_hash FROM users WHERE id = ${userId}`;
+    if (!row || !compareSync(currentPassword, row.password_hash)) {
+      return c.json({ error: "Current password is incorrect" }, 401);
+    }
+  }
+
   if (name && normalizedEmail && emailChanged) {
-    await sql`UPDATE users SET name = ${name}, email = ${normalizedEmail}, email_verified_at = NULL WHERE id = ${userId}`;
+    await sql`UPDATE users SET name = ${name}, email = ${normalizedEmail}, email_verified_at = NULL, token_version = token_version + 1 WHERE id = ${userId}`;
   } else if (name && normalizedEmail) {
     await sql`UPDATE users SET name = ${name}, email = ${normalizedEmail} WHERE id = ${userId}`;
   } else if (name) {
     await sql`UPDATE users SET name = ${name} WHERE id = ${userId}`;
   } else if (normalizedEmail && emailChanged) {
-    await sql`UPDATE users SET email = ${normalizedEmail}, email_verified_at = NULL WHERE id = ${userId}`;
+    await sql`UPDATE users SET email = ${normalizedEmail}, email_verified_at = NULL, token_version = token_version + 1 WHERE id = ${userId}`;
   } else if (normalizedEmail) {
     await sql`UPDATE users SET email = ${normalizedEmail} WHERE id = ${userId}`;
   }
 
   if (emailChanged && normalizedEmail) {
+    // Re-mint the caller's JWT keyed to the bumped token_version so the
+    // browser doesn't 401 on its next request. The bump itself is part of
+    // the UPDATE statements above.
+    const [vrow] = await sql`SELECT token_version FROM users WHERE id = ${userId}`;
+    const refreshed = await createToken(userId, vrow.token_version);
+    c.header("X-New-Token", refreshed);
+
     await sql`DELETE FROM email_tokens WHERE user_id = ${userId} AND type = 'verify'`;
     const { raw, hash } = generateEmailToken();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -214,7 +237,18 @@ auth.put("/password", authMiddleware, async (c) => {
     return c.json({ error: "Current password is incorrect" }, 401);
   }
 
-  await sql`UPDATE users SET password_hash = ${hashSync(newPassword, BCRYPT_COST)} WHERE id = ${userId}`;
+  // Bump token_version so any sibling sessions (other devices, leaked
+  // tokens) are forced to re-authenticate after a password change. The
+  // caller's own JWT becomes invalid too — re-mint a fresh one keyed to
+  // the new version and hand it back via X-New-Token so the client can
+  // swap without bouncing through /login.
+  const [updated] = await sql`
+    UPDATE users SET password_hash = ${hashSync(newPassword, BCRYPT_COST)}, token_version = token_version + 1
+    WHERE id = ${userId}
+    RETURNING token_version
+  `;
+  const newToken = await createToken(userId, updated.token_version);
+  c.header("X-New-Token", newToken);
   return c.json({ message: "Password updated" });
 });
 
@@ -285,7 +319,10 @@ auth.post("/reset-password", passwordResetLimit, async (c) => {
   }
 
   await sql.begin(async (tx) => {
-    await tx`UPDATE users SET password_hash = ${hashSync(newPassword, BCRYPT_COST)} WHERE id = ${record.user_id}`;
+    // Bump token_version inside the same transaction so any JWT issued
+    // before the reset is rejected by authMiddleware after the password
+    // changes — closes the "stolen token survives the reset" hole.
+    await tx`UPDATE users SET password_hash = ${hashSync(newPassword, BCRYPT_COST)}, token_version = token_version + 1 WHERE id = ${record.user_id}`;
     await tx`UPDATE email_tokens SET used_at = NOW() WHERE id = ${record.id}`;
   });
 

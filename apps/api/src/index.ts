@@ -40,6 +40,11 @@ app.use(
     origin: corsOrigins,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
+    // `X-New-Token` carries a freshly-minted JWT after credential rotation
+    // (password change, email change) so the client can swap its stored
+    // token without bouncing through /login. Must be explicitly exposed —
+    // browsers hide non-safelisted response headers by default.
+    exposeHeaders: ["X-New-Token"],
   })
 );
 

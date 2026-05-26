@@ -128,6 +128,11 @@ export async function initDb() {
     )
   `;
 
+  // token_version: bumped on password reset, password change, and email
+  // change. Embedded in every JWT and compared at auth time so that a stolen
+  // token cannot survive a credential rotation event.
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`;
+
   await sql`ALTER TABLE email_addresses ADD COLUMN IF NOT EXISTS display_name TEXT`;
   // forwarding_verified_at: set when the destination address completes
   // double-opt-in. The inbound webhook refuses to relay unless this is

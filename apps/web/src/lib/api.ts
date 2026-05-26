@@ -47,6 +47,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(res.status, data.error || "Request failed")
   }
 
+  // Swap the stored token transparently when the server hands us a freshly
+  // minted one. The server emits this on credential-rotation endpoints
+  // (password change, email change) where the caller's existing JWT was
+  // just invalidated by a token_version bump — without the swap, the next
+  // request would 401 and the user would get bounced to /login mid-flow.
+  const newToken = res.headers.get("X-New-Token")
+  if (newToken) {
+    setToken(newToken)
+  }
+
   if (res.status === 204) return undefined as T
   return res.json()
 }
