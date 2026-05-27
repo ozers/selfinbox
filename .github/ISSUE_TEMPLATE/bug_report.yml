@@ -1,0 +1,31 @@
+name: Bug report
+description: Something isn't working the way the docs say it should.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What's happening?
+      description: |
+        What did you do, what did you expect, what did you see instead?
+        Steps to reproduce help a lot if you have them. Logs from
+        `apps/api` stdout or `docker compose logs app` are great —
+        please redact secrets.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit SHA or version
+      description: "`git rev-parse HEAD` in your checkout, or the release tag."
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: Setup
+      description: How you're running it + AWS region + Postgres provider (e.g. "Docker compose, eu-west-1, Neon").
+    validations:
+      required: false

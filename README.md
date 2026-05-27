@@ -122,7 +122,16 @@ Full walkthrough with prerequisites, sandbox notes, and DNS verification: **[`do
 
 ## Contributing
 
-Issues and PRs welcome. Open an issue first for bigger changes so we can discuss the approach. The project deliberately stays small — if your feature needs a queue / background worker / new infra dependency, let's talk first.
+Issues and PRs welcome. The project deliberately stays small — please skim
+[`CONTRIBUTING.md`](CONTRIBUTING.md) before sending a non-trivial PR so we
+don't reject work you put hours into. For usage questions, prefer
+[Discussions](https://github.com/ozers/selfinbox/discussions) over issues.
+
+## Security
+
+Please **don't** open public issues for vulnerabilities — see
+[`SECURITY.md`](SECURITY.md) for the disclosure email and what's in/out
+of scope.
 
 ## License
 
