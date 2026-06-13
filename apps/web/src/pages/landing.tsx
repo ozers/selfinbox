@@ -346,7 +346,7 @@ export default function LandingPage() {
           >
             <div className="flex items-center gap-2">
               <Github className="h-4 w-4 text-primary" />
-              <span>MIT licensed, ~3K LoC</span>
+              <span>MIT licensed, ~3K LoC backend</span>
             </div>
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-primary" />
@@ -570,7 +570,7 @@ aws ses verify-domain-dkim     --domain yourdomain.com
         <div className="mx-auto mt-8 max-w-6xl border-t border-border/50 pt-6 text-center text-xs text-muted-foreground">
           Built by{" "}
           <a
-            href="https://ozersubasi.com"
+            href="https://ozersubasi.com/en?utm_source=selfinbox&utm_medium=footer&utm_campaign=product-footer"
             target="_blank"
             rel="author noreferrer"
             className="font-medium text-foreground hover:text-primary transition-colors"
