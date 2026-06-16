@@ -1,7 +1,20 @@
 import { useState, useEffect, useCallback } from "react"
 import { api } from "./api"
-import { useMockEnabled, useMockData } from "./mock-data"
+import { useMockEnabled, useMockData } from "@/lib/mock-data"
 import type { Domain, Email, Usage, SmtpCredentials, SmtpCredentialsReveal } from "./types"
+
+// ── Debounce ───────────────────────────────────────────────────────
+
+// Returns `value` delayed by `delay` ms — used to avoid firing a request
+// on every keystroke (e.g. the inbox search box).
+export function useDebouncedValue<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(id)
+  }, [value, delay])
+  return debounced
+}
 
 // ── Generic fetch hook ─────────────────────────────────────────────
 

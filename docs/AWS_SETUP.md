@@ -11,16 +11,88 @@ The `scripts/setup-aws.sh` script provisions everything except domain verificati
 - `jq` installed
 - A domain you control (for SES sender identity)
 
+> ⚠️ **Don't use the AWS account root user.** Root has unrestricted access and
+> AWS best practice is to never use it for programmatic work. `setup-aws.sh`
+> refuses to run as root (override only with `ALLOW_ROOT=true`). Create an IAM
+> user to run it instead — see the next section.
+
+## Two users, two privilege levels
+
+There are two distinct IAM identities, and it's worth keeping them straight:
+
+| User | Created by | Permissions | Used for |
+|---|---|---|---|
+| **operator** (e.g. `selfinbox-admin`) | you, in the console | **you grant, before running** | running `setup-aws.sh` |
+| **`selfinbox-app`** | the script, automatically | least-privilege inline policy, set by the script | what the running app uses |
+
+The **app user is already least-privilege** — the script attaches exactly
+`ses:SendEmail/SendRawEmail/VerifyDomainIdentity/VerifyDomainDkim/GetIdentity*/DeleteIdentity`
+(`Resource: *`) and `s3:GetObject/PutObject` on the inbound bucket. Nothing for
+you to do there.
+
+The **operator user is the one you grant permissions to** — and the script
+*can't* do this for you (it would need those permissions to grant them, which
+is circular). Pick one:
+
+### Option A — simple
+
+Attach the AWS-managed **`AdministratorAccess`** policy. Fine for a self-host:
+it's a user you own, and you can deactivate/delete its access key once setup is
+done (you only need it for occasional re-runs). Console → IAM → Users → Create
+user → attach `AdministratorAccess` → create access key → `aws configure`.
+
+### Option B — least-privilege operator (recommended)
+
+Grant the operator **only** the actions `setup-aws.sh` actually calls — nothing
+else in the account is reachable. The policy lives in
+[`iam-provisioner-policy.json`](iam-provisioner-policy.json), scoped by resource
+where possible (`iam:*` only touches `user/selfinbox-app`, S3 only
+`selfinbox-inbound-*`, SNS only `selfinbox-ses-*`).
+
+This bootstrap is the one part you do **as root or an existing admin** (in the
+console or via CLI) — once, to mint the operator user. Everything afterward
+runs as that user.
+
+```bash
+# 1. Create the operator user (no permissions yet)
+aws iam create-user --user-name selfinbox-admin
+
+# 2. Attach the scoped provisioner policy (run from the repo root)
+aws iam put-user-policy --user-name selfinbox-admin \
+  --policy-name selfinbox-provisioner \
+  --policy-document file://docs/iam-provisioner-policy.json
+
+# 3. Mint an access key (prints AccessKeyId + SecretAccessKey once)
+aws iam create-access-key --user-name selfinbox-admin
+
+# 4. Switch your CLI to that key, then confirm you're NOT root
+aws configure                      # paste the key from step 3
+aws sts get-caller-identity        # Arn must end with :user/selfinbox-admin
+```
+
+Now run `setup-aws.sh` as `selfinbox-admin`. The provisioner policy covers
+every call the script makes **plus** the manual `ses verify-domain-identity` /
+`verify-domain-dkim` / `verify-email-identity` steps below.
+
+> If you pin a custom `S3_INBOUND_BUCKET` name (not `selfinbox-inbound-*`),
+> edit the bucket ARN in `iam-provisioner-policy.json` to match before step 2.
+
+> 🔒 **Hygiene:** the operator access key is only needed for provisioning and
+> the occasional re-run (domain verification, SNS wiring). Deactivate it in IAM
+> between runs, or delete it and mint a fresh one when you next need it.
+
 ## TL;DR
 
 ```bash
 export AWS_REGION=eu-west-1
-export S3_INBOUND_BUCKET=selfinbox-inbound
-export APP_URL=https://your-app.example.com
+export APP_URL=https://your-app.example.com   # https only; localhost skips SNS
 ./scripts/setup-aws.sh
 ```
 
-The script prints the IAM access key once at the end. Copy it into `apps/api/.env`.
+The inbound S3 bucket name defaults to `selfinbox-inbound-<account-id>` (S3
+names are globally unique). Pin your own with `export S3_INBOUND_BUCKET=...`.
+The script writes `AWS_REGION`, `S3_INBOUND_BUCKET`, and the IAM access key
+into `apps/api/.env` for you (the secret key is printed to the terminal only if `.env` is missing — otherwise it goes straight into the file).
 
 Then verify your sending domain:
 
@@ -35,13 +107,14 @@ Add the printed TXT (verification) and CNAME (DKIM) records to your DNS, wait a 
 
 | Resource | Name (default) | Purpose |
 |---|---|---|
-| S3 bucket | `selfinbox-inbound` | SES drops every received email here as raw RFC822 |
+| S3 bucket | `selfinbox-inbound-<account-id>` | SES drops every received email here as raw RFC822 (also stores processed attachments) |
+| S3 public-access block | (all on) | Bucket is never public — only SES writes, only the app reads |
 | S3 bucket policy | (inline) | Lets `ses.amazonaws.com` PutObject |
 | SNS topic | `selfinbox-ses-inbound` | Notifies API of new inbound messages |
 | SNS topic | `selfinbox-ses-bounce` | Bounce + complaint notifications |
 | SNS subscriptions | (HTTPS) | Subscribed to `$APP_URL/api/webhooks/ses/{inbound,bounce}` |
 | IAM user | `selfinbox-app` | The credentials your app uses |
-| IAM inline policy | `selfinbox-app` | SES send + S3 GetObject (least privilege) |
+| IAM inline policy | `selfinbox-app` | SES send/verify/delete-identity + S3 Get/PutObject (least privilege) |
 | SES rule set | `selfinbox-default` | Container for receipt rules |
 | SES receipt rule | `selfinbox-inbound` | Wildcard catch-all → S3 + SNS |
 

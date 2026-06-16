@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import type { User } from "./types"
 import { api, setToken } from "./api"
-import { useMockEnabled, useMockData } from "./mock-data"
+import { useMockEnabled, useMockData } from "@/lib/mock-data"
 
 interface AuthState {
   user: User | null

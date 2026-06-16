@@ -1,0 +1,63 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Identity",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Sid": "InboundBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:ListBucket",
+        "s3:PutBucketVersioning",
+        "s3:PutBucketPolicy",
+        "s3:PutBucketPublicAccessBlock"
+      ],
+      "Resource": "arn:aws:s3:::selfinbox-inbound-*"
+    },
+    {
+      "Sid": "SnsTopics",
+      "Effect": "Allow",
+      "Action": [
+        "sns:CreateTopic",
+        "sns:Subscribe",
+        "sns:ListSubscriptionsByTopic"
+      ],
+      "Resource": "arn:aws:sns:*:*:selfinbox-ses-*"
+    },
+    {
+      "Sid": "AppUserOnly",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetUser",
+        "iam:CreateUser",
+        "iam:PutUserPolicy",
+        "iam:ListAccessKeys",
+        "iam:CreateAccessKey"
+      ],
+      "Resource": "arn:aws:iam::*:user/selfinbox-app"
+    },
+    {
+      "Sid": "SesReceiptRulesAndIdentities",
+      "Effect": "Allow",
+      "Action": [
+        "ses:CreateReceiptRuleSet",
+        "ses:DescribeReceiptRuleSet",
+        "ses:DescribeActiveReceiptRuleSet",
+        "ses:SetActiveReceiptRuleSet",
+        "ses:CreateReceiptRule",
+        "ses:UpdateReceiptRule",
+        "ses:DescribeReceiptRule",
+        "ses:VerifyDomainIdentity",
+        "ses:VerifyDomainDkim",
+        "ses:VerifyEmailIdentity",
+        "ses:SetIdentityNotificationTopic"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

@@ -18,6 +18,6 @@ restartPolicyMaxRetries = 3
 # AWS_REGION          → eu-west-1
 # AWS_ACCESS_KEY_ID   → from AWS IAM
 # AWS_SECRET_ACCESS_KEY → from AWS IAM
-# S3_INBOUND_BUCKET   → selfinbox-inbound
+# S3_INBOUND_BUCKET   → selfinbox-inbound-<account-id>  (printed by setup-aws.sh)
 # SMTP_HOST           → your-api.railway.app (or custom domain)
-# CORS_ORIGIN         → https://your-web.railway.app
+# WEB_ORIGIN          → https://your-web.railway.app  (only if the SPA is on a separate origin)

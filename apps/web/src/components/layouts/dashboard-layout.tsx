@@ -53,7 +53,7 @@ export function DashboardLayout() {
             </div>
             <span className="font-semibold text-foreground">{BRAND_NAME}</span>
           </Link>
-          <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <button className="lg:hidden" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
             <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
@@ -205,7 +205,7 @@ export function DashboardLayout() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{user.email}</p>
               </div>
-              <button onClick={handleLogout}>
+              <button onClick={handleLogout} aria-label="Log out">
                 <LogOut className="h-4 w-4 text-muted-foreground hover:text-foreground" />
               </button>
             </div>
@@ -215,10 +215,10 @@ export function DashboardLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col lg:ml-60">
         <header className="flex h-14 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
-          <button onClick={() => setSidebarOpen(true)}>
+          <button onClick={() => setSidebarOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5 text-foreground" />
           </button>
-          <Link to="/dashboard" className="flex items-center gap-2">
+          <Link to={overviewPath} className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
               <Mail className="h-3 w-3 text-primary-foreground" />
             </div>

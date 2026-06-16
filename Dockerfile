@@ -1,11 +1,11 @@
 # ── Stage 1: build ────────────────────────────────────────────────────────────
-FROM node:23-slim AS build
+FROM node:22-slim AS build
 WORKDIR /app
 
 # Build args for Vite (baked into the SPA bundle at build time)
-# VITE_MODE: `app` (default — strict private deploy, no public landing),
-#            `public` (landing at `/` + full app, owner bookmarks /login),
-#            `marketing` (landing only, static, all else redirects to GitHub).
+# VITE_MODE: `app` (default — install build, only the real inbox: no landing,
+#            no demo), `public` (landing at `/` + full app + demo, owner
+#            bookmarks /login), `marketing` (landing + demo only, static).
 ARG VITE_MODE=app
 ARG VITE_BRAND_NAME=Selfinbox
 ARG VITE_SUPPORT_EMAIL=
@@ -38,7 +38,7 @@ RUN cd apps/api && npm run build
 RUN cd apps/api && npm install --omit=dev
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM node:23-slim
+FROM node:22-slim
 WORKDIR /app/apps/api
 
 COPY --from=build /app/apps/api/dist        ./dist

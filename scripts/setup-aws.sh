@@ -12,16 +12,37 @@
 #
 # Required tools: aws cli (v2), jq.
 # Required env: AWS credentials in your shell (aws sts get-caller-identity must work).
+#
+# Use an IAM admin user, NOT the account root user. The script refuses to run
+# as root unless ALLOW_ROOT=true. (Root = unrestricted access; never use it for
+# programmatic work — create an IAM user with AdministratorAccess instead.)
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/apps/api/.env"
 
-# ─── Config (override via env) ────────────────────────────────────────────────
+# Read KEY's value from apps/api/.env (empty if file/key absent). Keys are
+# unique in .env, so no head/tail (a SIGPIPE under pipefail would abort us).
+env_get() {
+  [ -f "$ENV_FILE" ] || return 0
+  sed -n "s|^$1=||p" "$ENV_FILE"
+}
+
+# ─── Config ───────────────────────────────────────────────────────────────────
+# Precedence: shell env  >  apps/api/.env  >  built-in default. Reading .env
+# matters so a region/bucket the user set there is honored — not ignored and
+# then silently overwritten with the default by set_env() below.
+AWS_REGION="${AWS_REGION:-$(env_get AWS_REGION)}"
 AWS_REGION="${AWS_REGION:-eu-west-1}"
-S3_BUCKET="${S3_INBOUND_BUCKET:-selfinbox-inbound}"
-APP_URL="${APP_URL:-}"
+APP_URL="${APP_URL:-$(env_get APP_URL)}"
+# Bucket name is resolved AFTER we know the account ID — S3 names are globally
+# unique across all AWS accounts, so a bare "selfinbox-inbound" almost always
+# collides. We suffix it with the account ID unless the user pinned one.
+S3_BUCKET="${S3_INBOUND_BUCKET:-$(env_get S3_INBOUND_BUCKET)}"
+# Treat the legacy collide-prone default from old .env.example as "unset" so we
+# fall through to the account-suffixed name instead of recreating the clash.
+if [ "$S3_BUCKET" = "selfinbox-inbound" ]; then S3_BUCKET=""; fi
 IAM_USER="${IAM_USER:-selfinbox-app}"
 SNS_INBOUND="${SNS_INBOUND:-selfinbox-ses-inbound}"
 SNS_BOUNCE="${SNS_BOUNCE:-selfinbox-ses-bounce}"
@@ -37,14 +58,70 @@ require() { command -v "$1" >/dev/null 2>&1 || { red "Missing: $1"; exit 1; }; }
 require aws
 require jq
 
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-[ -z "$ACCOUNT_ID" ] && { red "AWS credentials not configured."; exit 1; }
+# Write KEY=VALUE into apps/api/.env, replacing an existing line or appending.
+# Values here are account IDs / region / bucket names (safe for the `|` sed
+# delimiter — no `|` ever appears in them).
+set_env() {
+  local key="$1" val="$2"
+  [ -f "$ENV_FILE" ] || return 0
+  if grep -q "^${key}=" "$ENV_FILE"; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+    else
+      sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+    fi
+  else
+    echo "${key}=${val}" >> "$ENV_FILE"
+  fi
+}
 
-green "Account: $ACCOUNT_ID  Region: $AWS_REGION"
+CALLER=$(aws sts get-caller-identity --output json)
+ACCOUNT_ID=$(echo "$CALLER" | jq -r '.Account')
+CALLER_ARN=$(echo "$CALLER" | jq -r '.Arn')
+[ -z "$ACCOUNT_ID" ] || [ "$ACCOUNT_ID" = "null" ] && { red "AWS credentials not configured."; exit 1; }
 
-if [ -z "$APP_URL" ]; then
-  yellow "APP_URL not set — SNS subscriptions will be skipped. Re-run with APP_URL=https://your.app to subscribe webhooks."
+# Refuse to provision as the AWS account ROOT user. Root has unrestricted
+# access; AWS best practice is to never use it for day-to-day work or
+# programmatic access. Create an IAM admin user and `aws configure` with that.
+# Override with ALLOW_ROOT=true if you truly have no other option.
+if [[ "$CALLER_ARN" == *":root" ]]; then
+  red "✗ You are authenticated as the AWS account ROOT user:"
+  red "    $CALLER_ARN"
+  red ""
+  red "  Running provisioning as root is strongly discouraged. Instead:"
+  red "    1. AWS Console → IAM → Users → Create user (e.g. 'selfinbox-admin')"
+  red "    2. Attach 'AdministratorAccess' (or a scoped admin policy)"
+  red "    3. Create an access key for it → run 'aws configure'"
+  red "  Then re-run this script."
+  red ""
+  if [ "${ALLOW_ROOT:-}" = "true" ]; then
+    yellow "  ALLOW_ROOT=true set — continuing as root against best practice."
+  else
+    red "  To override anyway (not recommended): ALLOW_ROOT=true $0"
+    exit 1
+  fi
 fi
+
+green "Account: $ACCOUNT_ID  Identity: $CALLER_ARN  Region: $AWS_REGION"
+
+# Resolve the bucket name now that we have the account ID, then persist the
+# region + bucket back to .env so the app talks to exactly what we provision.
+if [ -z "$S3_BUCKET" ]; then
+  S3_BUCKET="selfinbox-inbound-${ACCOUNT_ID}"
+fi
+green "Inbound bucket: $S3_BUCKET"
+set_env AWS_REGION "$AWS_REGION"
+set_env S3_INBOUND_BUCKET "$S3_BUCKET"
+
+# SNS can only deliver to a public HTTPS endpoint, and `sns subscribe` rejects
+# an http:// URL under `--protocol https`. So we only subscribe when APP_URL is
+# a real https:// host — localhost/http deploys subscribe later, from prod.
+PUBLIC_URL=""
+case "$APP_URL" in
+  https://*) PUBLIC_URL="${APP_URL%/}" ;;
+  "")        yellow "APP_URL not set — SNS subscriptions skipped. Re-run with APP_URL=https://your.app once deployed." ;;
+  *)         yellow "APP_URL is '$APP_URL' (not https://) — SNS subscriptions skipped. SNS needs a public HTTPS endpoint; re-run from your deployed URL." ;;
+esac
 
 # ─── 1. S3 bucket ─────────────────────────────────────────────────────────────
 if aws s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null; then
@@ -59,6 +136,13 @@ else
   fi
   aws s3api put-bucket-versioning --bucket "$S3_BUCKET" --versioning-configuration Status=Enabled
 fi
+
+# Block all public access — the only writer is SES (via the bucket policy
+# below) and the only reader is the app's IAM user. Nothing here is public.
+green "[apply] S3 public-access block"
+aws s3api put-public-access-block --bucket "$S3_BUCKET" \
+  --public-access-block-configuration \
+  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=true
 
 # Bucket policy — lets SES write to it
 green "[apply] S3 bucket policy (allow SES PutObject)"
@@ -107,10 +191,9 @@ subscribe() {
   green "[subscribe] $url → $arn"
 }
 
-if [ -n "$APP_URL" ]; then
-  APP_URL="${APP_URL%/}"
-  subscribe "$INBOUND_ARN" "$APP_URL/api/webhooks/ses/inbound"
-  subscribe "$BOUNCE_ARN"  "$APP_URL/api/webhooks/ses/bounce"
+if [ -n "$PUBLIC_URL" ]; then
+  subscribe "$INBOUND_ARN" "$PUBLIC_URL/api/webhooks/ses/inbound"
+  subscribe "$BOUNCE_ARN"  "$PUBLIC_URL/api/webhooks/ses/bounce"
   yellow "Confirmation will happen automatically when your API is reachable (it auto-confirms in webhooks.ts)."
 fi
 
@@ -128,12 +211,12 @@ IAM_POLICY=$(cat <<EOF
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["ses:SendEmail", "ses:SendRawEmail", "ses:VerifyDomainIdentity", "ses:VerifyDomainDkim", "ses:GetIdentityVerificationAttributes", "ses:GetIdentityDkimAttributes"],
+      "Action": ["ses:SendEmail", "ses:SendRawEmail", "ses:VerifyDomainIdentity", "ses:VerifyDomainDkim", "ses:GetIdentityVerificationAttributes", "ses:GetIdentityDkimAttributes", "ses:DeleteIdentity"],
       "Resource": "*"
     },
     {
       "Effect": "Allow",
-      "Action": ["s3:GetObject"],
+      "Action": ["s3:GetObject", "s3:PutObject"],
       "Resource": "arn:aws:s3:::${S3_BUCKET}/*"
     }
   ]
@@ -151,13 +234,10 @@ if [ -z "$EXISTING_KEYS" ]; then
   SECRET=$(echo "$KEY_JSON" | jq -r '.AccessKey.SecretAccessKey')
 
   if [ -f "$ENV_FILE" ]; then
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      sed -i '' "s|^AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=$AKID|" "$ENV_FILE"
-      sed -i '' "s|^AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=$SECRET|" "$ENV_FILE"
-    else
-      sed -i "s|^AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=$AKID|" "$ENV_FILE"
-      sed -i "s|^AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=$SECRET|" "$ENV_FILE"
-    fi
+    # set_env replaces the line or appends if absent (AWS secret keys are
+    # base64-ish — A-Za-z0-9+/ — so the '|' sed delimiter is always safe).
+    set_env AWS_ACCESS_KEY_ID "$AKID"
+    set_env AWS_SECRET_ACCESS_KEY "$SECRET"
     green "  ✓ AWS credentials written to $ENV_FILE"
   else
     echo
@@ -219,9 +299,10 @@ echo
 cat <<EOF
 Next steps:
 
-  1. Set these in apps/api/.env (if not already):
+  1. AWS_REGION + S3_INBOUND_BUCKET were written to apps/api/.env for you:
        AWS_REGION=$AWS_REGION
        S3_INBOUND_BUCKET=$S3_BUCKET
+     (If you skipped .env, set them manually before booting.)
 
   2. Verify your sending domain in SES (one-time, per region):
        Console → SES → Verified identities → Create identity → Domain

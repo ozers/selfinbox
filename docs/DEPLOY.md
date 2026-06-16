@@ -90,17 +90,19 @@ docker build \
 
 ## VPS
 
-Same story — install Node 23, run the three build steps above, put it behind nginx/Caddy with a reverse proxy + TLS. Use `pm2` or systemd to keep the API running.
+Same story — install Node 22+, run the three build steps above, put it behind nginx/Caddy with a reverse proxy + TLS. Use `pm2` or systemd to keep the API running.
 
 ## Build modes (`VITE_MODE`)
 
 The SPA has three build modes, set at build time via `VITE_MODE`:
 
-| Mode | `/` shows | Other paths | API needed? | Use case |
-|---|---|---|---|---|
-| `app` (default) | redirects to `/login` | normal | yes | Strict private self-host. No public landing — only the owner sees the login screen. |
-| `public` | the landing page | normal | yes | Public landing + private app on one domain. The landing has no Sign In link; the owner bookmarks `/login` to reach the dashboard. (`selfinbox.ozersubasi.com`'s model.) |
-| `marketing` | the landing page | redirect to the GitHub repo | no | Pure static landing. No app, no login, no backend — host on Cloudflare Pages / Netlify / S3. |
+| Mode | `/` shows | Landing | Demo (`/demo`) | API needed? | Use case |
+|---|---|---|---|---|---|
+| `app` (default) | redirects to `/login` | no | no | yes | Strict private self-host. **Only the real inbox** — no public landing, no demo. This is the install build. |
+| `public` | the landing page | yes | yes | yes | Public landing + private app on one domain. The landing has no Sign In link; the owner bookmarks `/login` to reach the dashboard. (`selfinbox.ozersubasi.com`'s model.) |
+| `marketing` | the landing page | yes | yes | no | Pure static landing + demo. No app, no login, no backend — host on Cloudflare Pages / Netlify / S3. |
+
+The landing and the mock-data demo always travel together: they ship in `public` and `marketing`, and are completely absent from the `app` (install) build — Vite tree-shakes both out when `VITE_MODE=app`.
 
 ### `public` — landing + app on one deploy
 
@@ -125,9 +127,25 @@ VITE_MODE=marketing VITE_API_URL='' npx vite build
 
 For an SPA static host, make sure the catch-all rewrite points at `index.html` (Cloudflare Pages auto-detects; Netlify needs a `_redirects` line; Nginx needs `try_files $uri /index.html;`). The in-app catch-all then redirects unknown paths to the GitHub repo.
 
+## Wire up SNS once you have a public URL
+
+`setup-aws.sh` only subscribes the SNS topics to your webhook endpoints when
+`APP_URL` is a real `https://` host — a local run (`http://localhost:...`)
+skips it, because SNS can only deliver to a public HTTPS endpoint. So after
+your first production deploy, re-run the provisioner from the deployed URL to
+create (and auto-confirm) the inbound + bounce subscriptions:
+
+```bash
+APP_URL=https://your-app.example.com ./scripts/setup-aws.sh
+```
+
+It's idempotent — everything else is skipped, only the missing SNS
+subscriptions get added. Confirm they show `Confirmed` (below).
+
 ## Post-deploy checklist
 
 - [ ] `APP_URL` matches your public URL (used for email links + OAuth + SNS subscriptions)
+- [ ] Re-ran `setup-aws.sh` from the public HTTPS URL so SNS subscriptions exist
 - [ ] DNS for the app domain resolves and TLS works
 - [ ] SES sandbox decision made — either out of sandbox (production access granted), or each recipient address verified via `aws ses verify-email-identity` (sending to unverified addresses 4xxs in sandbox)
 - [ ] SNS subscriptions show `Confirmed` (not `PendingConfirmation`) in the AWS console

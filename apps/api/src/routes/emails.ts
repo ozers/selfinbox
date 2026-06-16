@@ -126,22 +126,50 @@ emails.post("/send", async (c) => {
 
   const source = addr.display_name ? `${addr.display_name} <${from}>` : from;
 
-  const sesRes = await ses.send(
-    new SendEmailCommand({
-      Source: source,
-      Destination: {
-        ToAddresses: toAddrs,
-        CcAddresses: ccAddrs.length > 0 ? ccAddrs : undefined,
-      },
-      Message: {
-        Subject: { Data: subject, Charset: "UTF-8" },
-        Body: {
-          ...(bodyHtml ? { Html: { Data: bodyHtml, Charset: "UTF-8" } } : {}),
-          ...(bodyText ? { Text: { Data: bodyText, Charset: "UTF-8" } } : {}),
+  let sesRes;
+  try {
+    sesRes = await ses.send(
+      new SendEmailCommand({
+        Source: source,
+        Destination: {
+          ToAddresses: toAddrs,
+          CcAddresses: ccAddrs.length > 0 ? ccAddrs : undefined,
         },
-      },
-    })
-  );
+        Message: {
+          Subject: { Data: subject, Charset: "UTF-8" },
+          Body: {
+            ...(bodyHtml ? { Html: { Data: bodyHtml, Charset: "UTF-8" } } : {}),
+            ...(bodyText ? { Text: { Data: bodyText, Charset: "UTF-8" } } : {}),
+          },
+        },
+      })
+    );
+  } catch (err: any) {
+    // SES rejects on the send path — overwhelmingly because the account is
+    // still in the SES sandbox (recipient not verified). Without this catch
+    // the error bubbles up as an opaque 500; surface an actionable 4xx instead.
+    const name: string = err?.name ?? "SESError";
+    const detail: string = err?.message ?? "Failed to send email";
+
+    if (name === "MessageRejected" && /not verified/i.test(detail)) {
+      return c.json(
+        {
+          error:
+            "Recipient address isn't verified. Your AWS account is in the SES sandbox, which only allows sending to verified addresses. Verify the recipient in SES (Console → SES → Verified identities), or request production access to send to anyone.",
+        },
+        422
+      );
+    }
+    if (name === "AccountSendingPausedException") {
+      return c.json({ error: "SES has paused sending for this account — check the SES console." }, 422);
+    }
+    if (/throttl/i.test(name) || name === "TooManyRequestsException") {
+      return c.json({ error: "SES is rate-limiting sends right now. Try again in a moment." }, 429);
+    }
+
+    console.error("[emails/send] SES send failed:", name, detail);
+    return c.json({ error: `Failed to send via SES: ${detail}` }, 502);
+  }
 
   const emailId = crypto.randomUUID();
   await sql`
