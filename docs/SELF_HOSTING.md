@@ -8,11 +8,17 @@ Time — ~45 min the first time (mostly DNS propagation), ~5 min per additional 
 
 | What | Why | Check |
 |---|---|---|
-| **Node 23** | API + Vite build | `node -v` |
+| **Node 22+** | API + Vite build (not needed if you use Docker) | `node -v` |
 | **AWS CLI v2**, configured | provisioner script + domain verification | `aws sts get-caller-identity` |
 | **`jq`** | provisioner parses AWS responses | `jq --version` |
 | **Postgres** | app state. [Neon](https://neon.tech), [Supabase](https://supabase.com), Railway plugin, RDS, or local — any Postgres works (SSL is auto-detected) | `psql --version` if local |
 | **A domain you own** | with DNS you can edit at any registrar | — |
+
+> ⚠️ **Use an IAM operator user, not the account root.** Root has unrestricted access and shouldn't be used for programmatic work — `setup-aws.sh` refuses to run as root. Create a dedicated user to run the provisioner with, and grant it either:
+> - **`AdministratorAccess`** (simple), or
+> - the **least-privilege provisioner policy** in [`docs/iam-provisioner-policy.json`](iam-provisioner-policy.json) — only the S3/SNS/IAM/SES/STS actions the script calls, scoped by resource (**recommended**).
+>
+> Full step-by-step (create user → attach policy → access key → `aws configure`) is in [`AWS_SETUP.md` → Two users, two privilege levels](AWS_SETUP.md#two-users-two-privilege-levels). This operator user is separate from the least-privilege `selfinbox-app` user the script creates for the app itself.
 
 > **SES sandbox** — new AWS accounts start in the SES sandbox, which only restricts *sending* (receiving works either way). Stay in sandbox for forwarding-only or known-recipient setups (verify each with `aws ses verify-email-identity`, 200/day cap). Leave sandbox for arbitrary outbound. Full breakdown in [`AWS_SETUP.md`](AWS_SETUP.md#3-choose-stay-in-the-ses-sandbox-or-leave-it).
 
@@ -23,9 +29,10 @@ If you have Docker and an AWS account, this is the shortest path:
 ```bash
 git clone https://github.com/ozers/selfinbox && cd selfinbox
 
-# 1. Bootstrap .env (generates JWT_SECRET, no npm install needed)
-cp .env.example apps/api/.env
-$EDITOR apps/api/.env   # fill in FROM_EMAIL, AWS_REGION
+# 1. Bootstrap .env + JWT_SECRET (no Node/npm needed on the host — just aws + jq)
+./scripts/init.sh --env-only
+$EDITOR apps/api/.env   # set FROM_EMAIL. DATABASE_URL is the bundled compose Postgres;
+                        # AWS_REGION + bucket are written by setup-aws.sh in step 2.
 
 # 2. Provision AWS (needs aws cli + jq)
 APP_URL=http://localhost:3001 ./scripts/setup-aws.sh
@@ -97,7 +104,7 @@ Open `apps/api/.env`. The minimum to provide:
 | `DATABASE_URL` | Postgres connection string. Schema auto-creates on first boot. SSL auto-enables for any non-localhost host — see provider examples in [`.env.example`](../.env.example). |
 | `FROM_EMAIL` | The address system mail (verify, password reset) sends from. Must be on a domain you'll verify in SES. |
 | `AWS_REGION` | `eu-west-1`, `us-east-1`, or `us-west-2` (SES inbound regions). |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Leave blank — step 3 prints fresh ones. |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Leave blank — step 3 writes fresh ones into `.env` for you. |
 
 `JWT_SECRET` was generated for you in step 1. Full annotated env list: [`.env.example`](../.env.example).
 
@@ -114,16 +121,25 @@ The script is idempotent — re-running skips anything that exists. It creates:
 - IAM user with a least-privilege inline policy
 - SES receipt rule set with a wildcard recipient rule
 
-**Last line of output** prints fresh `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` — paste them into `apps/api/.env`.
+The script **writes `AWS_REGION`, `S3_INBOUND_BUCKET`, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` straight into `apps/api/.env`** for you. (The key is printed to the terminal only if `.env` is missing.) Run it as an IAM user, not root — see [`AWS_SETUP.md`](AWS_SETUP.md#two-users-two-privilege-levels).
 
 ### 4. Verify your sender domain in SES
 
+> **You can usually skip this step.** Adding a domain in the dashboard (step 7)
+> already calls SES to create the identity + DKIM and shows you the exact DNS
+> records to paste — that's the easy path. Only run the CLI commands below if you
+> want to verify your `FROM_EMAIL` domain *before* booting (e.g. so system mail
+> works on first run). Verifying the same domain twice is harmless — SES is
+> idempotent.
+
 ```bash
-aws ses verify-domain-identity --domain yourdomain.com
-aws ses verify-domain-dkim     --domain yourdomain.com
+# --region MUST match the AWS_REGION you provisioned (eu-west-1 by default),
+# otherwise SES verifies the identity in the wrong region and inbound won't work.
+aws ses verify-domain-identity --domain yourdomain.com --region eu-west-1
+aws ses verify-domain-dkim     --domain yourdomain.com --region eu-west-1
 ```
 
-Both commands print DNS records — one TXT (verification) and three CNAMEs (DKIM). Add them at your registrar. SES flips the identity to verified within a few minutes once DNS resolves.
+Both commands print DNS records — one TXT (verification) and **three** CNAMEs (DKIM). Add **all of them** at your registrar. SES flips the identity to verified within a few minutes once DNS resolves.
 
 ### 5. Create your account
 
@@ -152,14 +168,75 @@ DNS propagation takes a few minutes. The dashboard polls in the background and f
 
 ### 8. Send + receive
 
-- **Outbound** — open the inbox → **Compose** → send. In sandbox: must be a verified address. Out of sandbox: anyone.
-- **Inbound** — send a message from any external mailbox to `you@yourdomain.com`. It appears in the inbox within seconds.
+- **Outbound** — open the inbox → **Compose** → send. Works on `localhost`.
+  While your AWS account is in the **SES sandbox** you can only send to
+  *verified* recipient addresses. To verify one:
+  ```bash
+  aws ses verify-email-identity --email-address you@gmail.com --region eu-west-1
+  ```
+  AWS emails that address a confirmation link — click it, then sends to it go
+  through. (If you send to an unverified address you'll get a clear *"Recipient
+  address isn't verified…"* error.) To send to *anyone* without per-address
+  verification, request production access (Console → SES → Account dashboard).
+- **Inbound** — send a message from any external mailbox to `you@yourdomain.com`. It appears in the inbox within seconds — **once the API is reachable at a public HTTPS URL**. Inbound does *not* work against `localhost`: AWS SNS delivers received mail to `/api/webhooks/ses/inbound`, which it can only reach over public HTTPS. Outbound + the UI work locally; for inbound, deploy first (see [Going to production](#going-to-production)) and re-run `setup-aws.sh` from the public URL to wire SNS.
 
 From here: add more addresses, enable catch-all (`*@yourdomain.com`), grab per-domain SMTP credentials for your apps, or forward to a personal inbox.
 
 ## Going to production
 
 Local dev runs the same way as production, but you'll need a real public URL — AWS SNS posts inbound mail webhooks to `/api/webhooks/ses/inbound` and that endpoint has to be reachable over public HTTPS. See [`DEPLOY.md`](DEPLOY.md) for Railway / Docker / VPS recipes and [`AWS_SETUP.md`](AWS_SETUP.md) for the full AWS walkthrough.
+
+## Troubleshooting
+
+Real issues you're likely to hit, and the fix. (These are the exact snags from a clean end-to-end install.)
+
+### Domain stuck on "Pending" / DKIM never verifies
+
+The badge stays **Pending** until SES sees *all* the records. The usual cause is a missing or mistyped record:
+
+- **You must add all three DKIM CNAMEs.** Missing even one keeps DKIM `Pending` forever. Re-check what's actually live:
+  ```bash
+  # domain ownership token (should return the SES value)
+  dig +short TXT _amazonses.yourdomain.com
+  # each DKIM CNAME (run for all three tokens shown in the dashboard)
+  dig +short CNAME <token>._domainkey.yourdomain.com
+  ```
+- **CNAME values must not have a trailing dot added by you** — paste exactly what the dashboard shows (`<token>.dkim.amazonses.com`).
+- SES re-checks on its own schedule; after the records resolve it can take a few minutes to flip to **Success**. It is not instant.
+
+### "Two SPF records" / "two DMARC records" — duplicate-record conflicts
+
+If your domain was **previously locked down for no email** (parked domains often ship with `v=spf1 -all` and `_dmarc` `p=reject`), pasting Selfinbox's records creates a **second** SPF/DMARC record. That's invalid — a domain may have only **one** TXT SPF record and **one** `_dmarc` record. Mail providers will hit a permerror.
+
+```bash
+dig +short TXT yourdomain.com           # should show ONE v=spf1 line
+dig +short TXT _dmarc.yourdomain.com     # should show ONE v=DMARC1 line
+```
+
+Delete the old record and keep Selfinbox's (`v=spf1 include:amazonses.com ~all` and the generated `v=DMARC1 …`). If you genuinely need both your old SPF rules and SES, **merge** them into one line (e.g. `v=spf1 include:amazonses.com include:your-old-provider.com ~all`) rather than keeping two records.
+
+### "Recipient address isn't verified" when sending
+
+You're in the **SES sandbox** (every new AWS account is). Sandbox only allows sending to verified recipients. Either verify the recipient once:
+
+```bash
+aws ses verify-email-identity --email-address them@example.com --region eu-west-1
+# → AWS emails them a confirmation link; after they click it, sends succeed
+```
+
+…or request production access (Console → SES → Account dashboard → *Request production access*) to send to anyone. Receiving is unaffected by the sandbox.
+
+### Inbound mail never arrives (but outbound works)
+
+Expected on `localhost`. AWS SNS can only deliver inbound webhooks to a **public HTTPS** URL, so received mail can't reach `http://localhost`. Outbound and the whole UI work locally; inbound only works once the app is deployed at a public HTTPS URL **and** you've re-run `setup-aws.sh` from that URL (it subscribes SNS to your webhooks then — on `localhost` it deliberately skips the subscription).
+
+To test inbound *before* deploying, expose the local app with a tunnel (`cloudflared tunnel --url http://localhost:3001` or `ngrok http 3001`), then re-run `APP_URL=https://<your-tunnel> ./scripts/setup-aws.sh`. The app auto-confirms the SNS subscription; send a message to your address and it lands in the inbox. Note a tunnel exposes your running app publicly — only do this on a trusted network and tear it down afterward.
+
+### `setup-aws.sh` fails
+
+- **`Missing: aws` / `Missing: jq`** — install both; the script needs them.
+- **Refuses to run as root** — by design. Run it as an IAM user with the provisioner policy (see the warning at the top of this doc).
+- **`AccessDenied` on an IAM/S3/SES action** — your operator user is missing that permission. Attach `AdministratorAccess` or the [least-privilege provisioner policy](iam-provisioner-policy.json).
 
 ## Configuration
 

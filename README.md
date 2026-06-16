@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-23-339933.svg" alt="Node 23"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-22%2B-339933.svg" alt="Node 22+"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5-3178C6.svg" alt="TypeScript"></a>
   <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/Postgres-16-336791.svg" alt="Postgres"></a>
   <a href="https://aws.amazon.com/ses/"><img src="https://img.shields.io/badge/AWS-SES%20%2B%20S3-FF9900.svg" alt="AWS SES"></a>
@@ -24,7 +24,8 @@
   <a href="#features">✨ Features</a> •
   <a href="docs/SELF_HOSTING.md">📖 Self-Hosting</a> •
   <a href="docs/DEPLOY.md">📦 Deploy</a> •
-  <a href="docs/AWS_SETUP.md">☁️ AWS Setup</a>
+  <a href="docs/AWS_SETUP.md">☁️ AWS Setup</a> •
+  <a href="docs/AI_SETUP.md">🤖 AI Setup</a>
 </p>
 
 ---
@@ -60,15 +61,18 @@ Docker + AWS account:
 
 ```bash
 git clone https://github.com/ozers/selfinbox && cd selfinbox
-cp .env.example apps/api/.env
-./scripts/setup-aws.sh
+./scripts/init.sh --env-only           # writes .env + JWT_SECRET (no Node needed on host)
+# edit apps/api/.env → set FROM_EMAIL (Postgres is bundled by compose)
+./scripts/setup-aws.sh                 # also writes AWS keys + bucket into .env
 docker compose up --build -d
 docker compose run --rm app node scripts/create-user.mjs
 ```
 
 Open <http://localhost:3001> → add a domain in the dashboard → paste the generated DNS records at your registrar → done.
 
-Manual / Node 23:
+> ⚠️ Run `setup-aws.sh` as an **IAM user, not the account root** (it refuses root). Grant that user `AdministratorAccess`, or the scoped least-privilege policy in [`docs/iam-provisioner-policy.json`](docs/iam-provisioner-policy.json) — setup steps in [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md#two-users-two-privilege-levels).
+
+Manual / Node 22+:
 
 ```bash
 git clone https://github.com/ozers/selfinbox && cd selfinbox
@@ -77,7 +81,9 @@ npm run aws:setup   # provisions S3 + SNS + IAM + SES rule set
 npm run create-user
 ```
 
-Full walkthrough with prerequisites, sandbox notes, and DNS verification: **[`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md)**.
+Full walkthrough with prerequisites, sandbox notes, DNS verification, and troubleshooting: **[`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md)**.
+
+> 🤖 **Want your AI agent to do it?** Hand it **[`docs/AI_SETUP.md`](docs/AI_SETUP.md)** — a literal, step-by-step runbook (with verify checks and human-only stop points) for Claude Code / Cursor / etc. to install Selfinbox for you.
 
 ## Architecture
 
@@ -94,7 +100,7 @@ Full walkthrough with prerequisites, sandbox notes, and DNS verification: **[`do
               └────────────────────────────┘
 ```
 
-- `apps/api` — Hono server (Node 23), serves API + built frontend
+- `apps/api` — Hono server (Node 22+), serves API + built frontend
 - `apps/web` — React SPA (Vite, Tailwind v4, React Router)
 - `scripts/setup-aws.sh` — idempotent AWS provisioner (S3 + SNS + IAM + SES rule set)
 
