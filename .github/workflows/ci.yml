@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    name: API — typecheck + tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "23"
+      - run: npm install
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npm test
+
+  web:
+    name: Web — typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "23"
+      # Vite 8 / Rolldown ships platform-specific native bindings as optional
+      # deps; --legacy-peer-deps avoids the npm #4828 skip on Linux.
+      - run: npm install --legacy-peer-deps
+      - name: Typecheck
+        run: npx tsc -b
