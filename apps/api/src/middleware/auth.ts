@@ -17,6 +17,16 @@ if (JWT_SECRET.length < 32) {
   throw new Error("[auth] JWT_SECRET must be at least 32 characters");
 }
 
+// The .env.example placeholder is 33 chars, so it sails past the length
+// check above — but it's published in the repo, so anyone could forge tokens
+// against a deploy still using it. Reject it explicitly. (The Node bootstrap
+// generates a real secret; the Docker path must set one — see docs.)
+if (JWT_SECRET === "change-me-to-a-long-random-string") {
+  throw new Error(
+    "[auth] JWT_SECRET is still the .env.example placeholder — generate a real one: openssl rand -base64 48",
+  );
+}
+
 const ENCODED_SECRET = new TextEncoder().encode(JWT_SECRET);
 
 export function getJwtSecret() {

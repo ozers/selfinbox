@@ -109,7 +109,10 @@ async function main() {
     }
 
     const id = randomUUID();
-    const passwordHash = bcrypt.hashSync(password, 10);
+    // Match the API's bcrypt cost (auth.ts BCRYPT_COST = 12, OWASP 2026
+    // baseline). The operator account shouldn't get a weaker hash than
+    // accounts created through the web register flow.
+    const passwordHash = bcrypt.hashSync(password, 12);
 
     await sql`
       INSERT INTO users (id, name, email, password_hash, email_verified_at)
