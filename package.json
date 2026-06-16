@@ -2,7 +2,7 @@
   "name": "selfinbox",
   "private": true,
   "engines": {
-    "node": "23"
+    "node": ">=22"
   },
   "scripts": {
     "init": "./scripts/init.sh",
