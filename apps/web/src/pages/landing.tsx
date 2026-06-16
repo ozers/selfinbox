@@ -8,6 +8,7 @@ import {
   Server,
   Lock,
   Copy,
+  Check,
   Sun,
   Moon,
   Menu,
@@ -169,7 +170,15 @@ function HeroCTA({ className }: { className?: string }) {
 export default function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [faqIndex, setFaqIndex] = useState<number | null>(null)
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
   const { theme, toggle } = useTheme()
+
+  function copyRecord(value: string, index: number) {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopiedIndex(index)
+      setTimeout(() => setCopiedIndex((c) => (c === index ? null : c)), 1500)
+    })
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -199,7 +208,7 @@ export default function LandingPage() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggle} className="hidden sm:inline-flex">
+            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme" className="hidden sm:inline-flex">
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
             <a href={REPO_URL} target="_blank" rel="noreferrer" className="hidden sm:inline-flex">
@@ -213,6 +222,8 @@ export default function LandingPage() {
               variant="ghost"
               size="icon"
               className="md:hidden"
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileOpen}
               onClick={() => setMobileOpen((o) => !o)}
             >
               {mobileOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -329,8 +340,15 @@ export default function LandingPage() {
                   <span className="shrink-0 w-8 text-primary font-semibold">{r.type}</span>
                   <span className="shrink-0 w-20 truncate text-muted-foreground sm:w-40">{r.name}</span>
                   <span className="flex-1 truncate text-foreground">{r.value}</span>
-                  <button className="shrink-0 opacity-100 transition-opacity text-muted-foreground hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100">
-                    <Copy className="h-3.5 w-3.5" />
+                  <button
+                    type="button"
+                    onClick={() => copyRecord(r.value, i)}
+                    aria-label={`Copy ${r.type} record value`}
+                    className="shrink-0 opacity-100 transition-opacity text-muted-foreground hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
+                  >
+                    {copiedIndex === i
+                      ? <Check className="h-3.5 w-3.5 text-status-active" />
+                      : <Copy className="h-3.5 w-3.5" />}
                   </button>
                 </div>
               ))}
@@ -516,6 +534,7 @@ aws ses verify-domain-dkim     --domain yourdomain.com
               >
                 <button
                   onClick={() => setFaqIndex(faqIndex === i ? null : i)}
+                  aria-expanded={faqIndex === i}
                   className="flex w-full items-center justify-between px-6 py-4 text-left"
                 >
                   <span className="font-medium text-foreground">{faq.q}</span>

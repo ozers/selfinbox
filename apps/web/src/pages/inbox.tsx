@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useToast } from "@/components/ui/toast"
-import { useEmails, useDomains } from "@/lib/hooks"
+import { useEmails, useDomains, useDebouncedValue } from "@/lib/hooks"
 import { useMockEnabled } from "@/lib/mock-data"
 import { formatRelativeTime } from "@/lib/utils"
 import { api } from "@/lib/api"
@@ -31,13 +31,15 @@ export default function InboxPage() {
     setAddressFilter(searchParams.get("address") ?? "")
   }, [searchParams])
 
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
   const { domains } = useDomains()
   const { emails, loading, error, refetch } = useEmails({
     domain: domainFilter !== "all" ? domainFilter : undefined,
     address: addressFilter || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
     direction: directionFilter !== "all" ? directionFilter : undefined,
-    search: searchQuery || undefined,
+    search: debouncedSearch || undefined,
   })
 
   // Compose state
@@ -208,11 +210,11 @@ export default function InboxPage() {
                 >
                   {/* Direction icon */}
                   <span className={`flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-full ${
-                    isInbound ? "bg-emerald-500/10" : "bg-blue-500/10"
+                    isInbound ? "bg-status-active/10" : "bg-primary/10"
                   }`}>
                     {isInbound
-                      ? <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-500" />
-                      : <ArrowUpRight className="h-3.5 w-3.5 text-blue-400" />
+                      ? <ArrowDownLeft className="h-3.5 w-3.5 text-status-active" />
+                      : <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
                     }
                   </span>
 
@@ -247,7 +249,7 @@ export default function InboxPage() {
                     <Paperclip className="hidden h-3.5 w-3.5 flex-shrink-0 text-muted-foreground sm:inline-block" aria-label={`${email.attachments.length} attachment${email.attachments.length === 1 ? "" : "s"}`} />
                   ) : null}
                   <span className={`hidden flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-mono sm:inline-block ${
-                    isInbound ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"
+                    isInbound ? "bg-status-active/10 text-status-active" : "bg-primary/10 text-primary"
                   }`}>
                     {displayAddressBadge}
                   </span>
@@ -279,12 +281,14 @@ export default function InboxPage() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setComposeMinimized(!composeMinimized)}
+                  aria-label={composeMinimized ? "Expand compose" : "Minimize compose"}
                   className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 >
                   <Minus className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={closeCompose}
+                  aria-label="Close compose"
                   className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />

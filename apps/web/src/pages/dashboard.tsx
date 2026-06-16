@@ -303,7 +303,7 @@ export default function DashboardPage() {
           sub={recvTrend !== null ? `${recvTrend >= 0 ? "+" : ""}${recvTrend}% vs prev 14d` : "no prior data"}
           subTone={recvTrend !== null ? (recvTrend >= 0 ? "positive" : "negative") : "neutral"}
           icon={ArrowDownLeft}
-          sparkline={<Sparkline timestamps={recvTimestamps} className="h-7 w-20 text-emerald-500" />}
+          sparkline={<Sparkline timestamps={recvTimestamps} className="h-7 w-20 text-status-active" />}
         />
       </motion.div>
 
@@ -473,13 +473,13 @@ export default function DashboardPage() {
                   >
                     <span
                       className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${
-                        isInbound ? "bg-emerald-500/10" : "bg-blue-500/10"
+                        isInbound ? "bg-status-active/10" : "bg-primary/10"
                       }`}
                     >
                       {isInbound ? (
-                        <ArrowDownLeft className="h-2.5 w-2.5 text-emerald-500" />
+                        <ArrowDownLeft className="h-2.5 w-2.5 text-status-active" />
                       ) : (
-                        <ArrowUpRight className="h-2.5 w-2.5 text-blue-400" />
+                        <ArrowUpRight className="h-2.5 w-2.5 text-primary" />
                       )}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -531,7 +531,7 @@ function StatCard({
 }) {
   const subColor =
     subTone === "positive"
-      ? "text-emerald-500"
+      ? "text-status-active"
       : subTone === "negative"
         ? "text-status-error"
         : "text-muted-foreground"
