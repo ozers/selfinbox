@@ -402,7 +402,7 @@ export default function LandingPage() {
             >
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 <li className="flex gap-2"><span className="text-primary">•</span><span><a href="https://aws.amazon.com" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">An AWS account</a> — free tier is fine to start, you'll pay cents per month for personal use</span></li>
-                <li className="flex gap-2"><span className="text-primary">•</span><span><a href="https://nodejs.org" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">Node 23</a>, <a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">AWS CLI v2</a>, and <a href="https://stedolan.github.io/jq/" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">jq</a> installed</span></li>
+                <li className="flex gap-2"><span className="text-primary">•</span><span><a href="https://nodejs.org" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">Node 22+</a> <span className="text-muted-foreground/70">(or just Docker — no Node needed)</span>, <a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">AWS CLI v2</a>, and <a href="https://stedolan.github.io/jq/" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">jq</a> installed</span></li>
                 <li className="flex gap-2"><span className="text-primary">•</span><span>A Postgres database — <a href="https://neon.tech" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">Neon</a>, <a href="https://supabase.com" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">Supabase</a>, or <a href="https://railway.app" target="_blank" rel="noreferrer" className="underline decoration-dotted hover:text-foreground">Railway</a> all have free tiers. Local works too.</span></li>
                 <li className="flex gap-2"><span className="text-primary">•</span><span>A domain whose DNS records you control</span></li>
               </ul>
@@ -440,20 +440,18 @@ $EDITOR apps/api/.env
             >
               <Snippet>{`APP_URL=http://localhost:3001 ./scripts/setup-aws.sh
 
-# at the end it prints fresh AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY
-# — paste them into apps/api/.env`}</Snippet>
+# it writes the fresh AWS_ACCESS_KEY_ID + SECRET (and the bucket name)
+# straight into apps/api/.env for you — nothing to copy by hand`}</Snippet>
             </Step>
 
             <Step
               num="05"
               title="Verify your sender domain in SES"
-              description="SES needs to know you own the domain you'll send from. Two CLI calls, then add the records they print to your DNS host."
+              description="Good news — you can skip this. Adding a domain in the dashboard (step 7) already creates the SES identity and shows you the exact DNS records to paste. Run these CLI calls only if you'd rather verify your FROM_EMAIL domain before booting; verifying twice is harmless."
             >
-              <Snippet>{`aws ses verify-domain-identity --domain yourdomain.com
-aws ses verify-domain-dkim     --domain yourdomain.com
-
-# add the printed TXT (verification) and CNAME (DKIM) records to your DNS
-# verification finishes in a few minutes`}</Snippet>
+              <Snippet>{`# optional — the dashboard does this for you
+aws ses verify-domain-identity --domain yourdomain.com
+aws ses verify-domain-dkim     --domain yourdomain.com`}</Snippet>
             </Step>
 
             <SandboxCallout />
@@ -499,6 +497,10 @@ aws ses verify-domain-dkim     --domain yourdomain.com
 
           <div className="mt-12 space-y-3">
             {[
+              {
+                q: "How technical do I need to be?",
+                a: "If you can copy-paste terminal commands and add a few DNS records at your registrar, you can do this — the provisioning script handles all the AWS wiring and the dashboard generates the exact DNS records to paste. Plan about an hour the first time, mostly waiting on DNS. Prefer not to touch a terminal at all? Hand the step-by-step AI runbook (docs/AI_SETUP.md) to Claude Code or Cursor and it'll do the install for you, stopping only for the things it can't — pasting your AWS keys, editing DNS, clicking a confirmation link.",
+              },
               {
                 q: "What does this cost to run?",
                 a: "You pay AWS directly. SES is $0.10 per 1,000 emails sent and the first 1,000 received per month are free. S3 storage for inbound mail is cents per GB. A personal deploy with a few hundred emails/month typically runs under $1/month all-in, plus whatever you spend on a VPS or Railway compute.",

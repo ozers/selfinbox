@@ -55,6 +55,14 @@ Use it for:
 - **Multi-tenant** — users, domains, addresses, catch-alls isolated by `user_id`.
 - **Single process** — one Node server, Postgres, AWS. No queue, no Redis.
 
+## What you'll need
+
+- An **AWS account** — free tier is fine; a personal inbox typically runs **under $1/month** (SES is $0.10 per 1,000 emails, first 1,000 received/month free).
+- A **domain** you can add DNS records to (any registrar).
+- **Docker** — or Node 22+ if you'd rather run it directly.
+
+That's the whole list. `setup-aws.sh` provisions everything in your AWS account for you, and the dashboard generates the exact DNS records to paste. Budget ~an hour the first time, most of it just waiting on DNS. Not a terminal person? Hand [`docs/AI_SETUP.md`](docs/AI_SETUP.md) to an AI agent and it'll do the install for you.
+
 ## Quick start
 
 Docker + AWS account:
