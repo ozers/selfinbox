@@ -30,6 +30,17 @@
 
 ---
 
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="Selfinbox dashboard — domains, addresses, sent/received stats, recent activity" width="840">
+</p>
+<p align="center">
+  <img src="docs/images/inbox.png" alt="Unified inbox across all your domains" width="415">
+  <img src="docs/images/domain-dns.png" alt="Auto-generated MX / SPF / DKIM / DMARC records, verified" width="415">
+</p>
+<p align="center">
+  <sub><a href="https://selfinbox.ozersubasi.com/demo">↗ Try the live demo</a> — sample data, no signup</sub>
+</p>
+
 ## What is this
 
 A thin, open-source app on top of **AWS SES**. SES handles the hard parts (delivery, reputation, DKIM signing); Selfinbox gives you the UI, multi-domain plumbing, Postgres state, and a one-shot script that wires it all together.
@@ -78,20 +89,11 @@ docker compose run --rm app node scripts/create-user.mjs
 
 Open <http://localhost:3001> → add a domain in the dashboard → paste the generated DNS records at your registrar → done.
 
-> ⚠️ Run `setup-aws.sh` as an **IAM user, not the account root** (it refuses root). Grant that user `AdministratorAccess`, or the scoped least-privilege policy in [`docs/iam-provisioner-policy.json`](docs/iam-provisioner-policy.json) — setup steps in [`docs/AWS_SETUP.md`](docs/AWS_SETUP.md#two-users-two-privilege-levels).
+> ⚠️ Run `setup-aws.sh` as an **IAM user, not the account root** (it refuses root) — it needs an admin or the scoped [provisioner policy](docs/iam-provisioner-policy.json).
 
-Manual / Node 22+:
+**Full setup** — prerequisites, the Node (non-Docker) path, SES sandbox notes, DNS verification, and troubleshooting — lives in **[`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md)**. Deploying to a host? See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
-```bash
-git clone https://github.com/ozers/selfinbox && cd selfinbox
-npm run init        # bootstraps .env + installs both apps
-npm run aws:setup   # provisions S3 + SNS + IAM + SES rule set
-npm run create-user
-```
-
-Full walkthrough with prerequisites, sandbox notes, DNS verification, and troubleshooting: **[`docs/SELF_HOSTING.md`](docs/SELF_HOSTING.md)**.
-
-> 🤖 **Want your AI agent to do it?** Hand it **[`docs/AI_SETUP.md`](docs/AI_SETUP.md)** — a literal, step-by-step runbook (with verify checks and human-only stop points) for Claude Code / Cursor / etc. to install Selfinbox for you.
+> 🤖 **Rather not touch a terminal?** Hand [`docs/AI_SETUP.md`](docs/AI_SETUP.md) to Claude Code / Cursor — it's a step-by-step runbook the agent follows to install Selfinbox for you, stopping only for what it can't do (your AWS keys, DNS edits).
 
 ## Architecture
 
@@ -111,12 +113,6 @@ Full walkthrough with prerequisites, sandbox notes, DNS verification, and troubl
 - `apps/api` — Hono server (Node 22+), serves API + built frontend
 - `apps/web` — React SPA (Vite, Tailwind v4, React Router)
 - `scripts/setup-aws.sh` — idempotent AWS provisioner (S3 + SNS + IAM + SES rule set)
-
-## Integrations
-
-- **SMTP** — per-domain credentials for any app (Gmail "Send as", Apple Mail, Thunderbird).
-- **Cloudflare** — one-click DNS record provisioning via OAuth or API token.
-- **Webhooks** — incoming mail and bounce notifications via SNS.
 
 ## Contributors
 
