@@ -78,11 +78,22 @@ async function handleSnsRequest(
   }
 
   if (body.Type === "Notification") {
+    let message: any;
     try {
-      const message = JSON.parse(body.Message ?? "{}");
+      message = JSON.parse(body.Message ?? "{}");
+    } catch (err) {
+      // Malformed payload — a retry can't fix it. Ack (200) so SNS stops.
+      console.error(`[webhook/${tag}] Unparseable notification, dropping:`, err);
+      return c.json({ message: "OK" });
+    }
+    try {
       await onNotification(message);
     } catch (err) {
-      console.error(`[webhook/${tag}] Failed to process notification:`, err);
+      // Likely transient (S3 fetch, DB blip). Return 5xx so SNS retries with
+      // backoff instead of silently dropping the mail — the inbound write is
+      // idempotent ((ses_message_id, address)), so a retry can't duplicate.
+      console.error(`[webhook/${tag}] Processing failed, letting SNS retry:`, err);
+      return c.json({ error: "Processing failed" }, 500);
     }
     return c.json({ message: "OK" });
   }
@@ -165,16 +176,33 @@ async function handleInboundEmail(snsMessage: any) {
 
     const emailId = crypto.randomUUID();
 
+    // SNS is at-least-once. Cheap pre-check skips the S3 + parse work on a
+    // re-delivery of the same message to the same recipient; the
+    // (ses_message_id, address) ON CONFLICT below is the race-safe backstop for
+    // two deliveries landing concurrently.
+    const [dup] = await sql`
+      SELECT 1 FROM emails WHERE ses_message_id = ${messageId} AND address = ${address.address}
+    `;
+    if (dup) {
+      console.log(`[webhook/inbound] Duplicate delivery ignored (${messageId} → ${address.address})`);
+      continue;
+    }
+
     const { attachments, hasQuarantined } = await ingestAttachments(
       parsed.attachments,
       domain.user_id,
       emailId,
     );
 
-    await sql`
+    const inserted = await sql`
       INSERT INTO emails (id, user_id, domain_id, address, direction, from_addr, to_addrs, cc_addrs, subject, body_text, body_html, ses_message_id, s3_key, attachments_meta, has_quarantined)
       VALUES (${emailId}, ${domain.user_id}, ${domain.id}, ${address.address}, 'inbound', ${parsed.from}, ${JSON.stringify(parsed.to)}, ${JSON.stringify(parsed.cc)}, ${parsed.subject}, ${parsed.bodyText}, ${parsed.bodyHtml}, ${messageId}, ${s3Key}, ${JSON.stringify(attachments)}::jsonb, ${hasQuarantined})
+      ON CONFLICT (ses_message_id, address) DO NOTHING
     `;
+    if (inserted.count === 0) {
+      console.log(`[webhook/inbound] Concurrent duplicate ignored (${messageId} → ${address.address})`);
+      continue;
+    }
 
     console.log(`[webhook/inbound] Stored email ${emailId} (${attachments.length} attachments, quarantined=${hasQuarantined})`);
 

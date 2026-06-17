@@ -167,6 +167,43 @@ export async function initDb() {
   await sql`ALTER TABLE users DROP COLUMN IF EXISTS ls_subscription_id`;
   await sql`DROP TABLE IF EXISTS waitlist`;
 
+  // ── Uniqueness constraints (added after the fact) ──────────────────────────
+  // A domain's SES identity + MX are account-global, so a domain can belong to
+  // exactly one user per deploy. Without this, a second user could claim
+  // another's domain and — once SES shows it verified account-wide — receive
+  // their inbound mail (the inbound router matches on `domain` + status only).
+  //
+  // Inbound idempotency: SNS is at-least-once, so the same message can be
+  // delivered twice. (ses_message_id, address) is the natural key for a stored
+  // copy — NULLs stay distinct, and outbound sends each get a unique SES id, so
+  // this never collides on legitimate rows. The inbound INSERT pairs this with
+  // ON CONFLICT DO NOTHING.
+  //
+  // Wrapped: if a pre-existing duplicate predates the constraint, log a warning
+  // instead of bricking boot so the operator can dedupe and restart.
+  const uniqueIndexes: Array<[string, string]> = [
+    ["domains_domain_unique", `CREATE UNIQUE INDEX IF NOT EXISTS domains_domain_unique ON domains(domain)`],
+    ["emails_message_address_unique", `CREATE UNIQUE INDEX IF NOT EXISTS emails_message_address_unique ON emails(ses_message_id, address)`],
+  ];
+  for (const [name, ddl] of uniqueIndexes) {
+    try {
+      await sql.unsafe(ddl);
+    } catch (err) {
+      console.warn(`[db] could not create unique index ${name} (pre-existing duplicates?) — resolve and restart:`, (err as Error).message);
+    }
+  }
+
+  // ── Indexes for hot query paths ────────────────────────────────────────────
+  // Non-unique, so they never fail on data. Cover the inbox list, the inbound
+  // routing lookups, complaint counting, and the per-domain relation fetches.
+  await sql`CREATE INDEX IF NOT EXISTS emails_user_created_idx ON emails(user_id, created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS emails_domain_idx ON emails(domain_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS email_addresses_address_idx ON email_addresses(address)`;
+  await sql`CREATE INDEX IF NOT EXISTS email_addresses_domain_idx ON email_addresses(domain_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS domains_user_idx ON domains(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS dns_records_domain_idx ON dns_records(domain_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS bounce_events_user_type_created_idx ON bounce_events(user_id, type, created_at DESC)`;
+
   console.log("[db] PostgreSQL schema ready");
 }
 
