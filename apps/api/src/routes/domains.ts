@@ -146,9 +146,15 @@ domains.post("/", async (c) => {
     return c.json({ error: "Domain is required" }, 400);
   }
 
-  const [existing] = await sql`SELECT id FROM domains WHERE domain = ${domainName} AND user_id = ${userId}`;
+  // One domain per deploy — its SES identity, MX and DNS are account-global, so
+  // it can belong to exactly one user. Check across ALL users (not just this
+  // one) before touching SES, so a second account can't claim — and then
+  // receive inbound mail for — a domain another user already added.
+  const [existing] = await sql`SELECT user_id FROM domains WHERE domain = ${domainName}`;
   if (existing) {
-    return c.json({ error: "Domain already added" }, 409);
+    return existing.user_id === userId
+      ? c.json({ error: "Domain already added" }, 409)
+      : c.json({ error: "This domain is already registered on this instance." }, 409);
   }
 
   const domainId = crypto.randomUUID();

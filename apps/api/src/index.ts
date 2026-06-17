@@ -57,7 +57,12 @@ app.route("/api/domains", cloudflare);
 app.route("/api/oauth", oauth);
 app.route("/api/webhooks", webhooks);
 
-app.get("/health", (c) => c.json({ status: "ok" }));
+// Health check. Exposed under /api/* too — without it, monitors hitting
+// /api/health fall through to the SPA fallback and get 200 + HTML, masking a
+// down API. Both paths return the same JSON.
+const health = (c: any) => c.json({ status: "ok" });
+app.get("/health", health);
+app.get("/api/health", health);
 
 // Serve built frontend static files
 app.use("*", serveStatic({ root: publicDir }));
