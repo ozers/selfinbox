@@ -23,6 +23,7 @@
   <a href="#quick-start">🚀 Quick Start</a> •
   <a href="#features">✨ Features</a> •
   <a href="docs/SELF_HOSTING.md">📖 Self-Hosting</a> •
+  <a href="docs/ARCHITECTURE.md">🏗️ Architecture</a> •
   <a href="docs/DEPLOY.md">📦 Deploy</a> •
   <a href="docs/AWS_SETUP.md">☁️ AWS Setup</a> •
   <a href="docs/AI_SETUP.md">🤖 AI Setup</a>
@@ -113,6 +114,8 @@ Open <http://localhost:3001> → add a domain in the dashboard → paste the gen
 - `apps/api` — Hono server (Node 22+), serves API + built frontend
 - `apps/web` — React SPA (Vite, Tailwind v4, React Router)
 - `scripts/setup-aws.sh` — idempotent AWS provisioner (S3 + SNS + IAM + SES rule set)
+
+How the inbound SES → S3 → SNS → webhook pipeline works (and the security model behind it): **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**.
 
 ## Contributors
 
