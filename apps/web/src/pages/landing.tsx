@@ -378,6 +378,68 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Product preview ──────────────────────────────────────── */}
+      <section className="px-6 pb-24">
+        <div className="mx-auto max-w-5xl">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.5 }}
+            className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+          >
+            <img
+              src="/screenshots/dashboard-light.png"
+              alt="Selfinbox dashboard — domains, addresses, sent and received stats, recent activity"
+              width={1320}
+              height={860}
+              loading="lazy"
+              className="block w-full dark:hidden"
+            />
+            <img
+              src="/screenshots/dashboard-dark.png"
+              alt=""
+              aria-hidden="true"
+              width={1320}
+              height={860}
+              loading="lazy"
+              className="hidden w-full dark:block"
+            />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mt-5 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+          >
+            <img
+              src="/screenshots/inbox-light.png"
+              alt="Unified inbox across all your custom-domain addresses"
+              width={1320}
+              height={860}
+              loading="lazy"
+              className="block w-full dark:hidden"
+            />
+            <img
+              src="/screenshots/inbox-dark.png"
+              alt=""
+              aria-hidden="true"
+              width={1320}
+              height={860}
+              loading="lazy"
+              className="hidden w-full dark:block"
+            />
+          </motion.div>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            The actual app, on sample data.{" "}
+            <Link to="/demo" className="font-medium text-primary hover:underline">Open the live demo →</Link>
+          </p>
+        </div>
+      </section>
+
       {/* ── How it Works ──────────────────────────────────────────── */}
       <section id="how-it-works" className="px-6 py-24 bg-secondary/50">
         <div className="mx-auto max-w-3xl">

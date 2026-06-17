@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* The app toggles a `.dark` class on <html> (see lib/theme.tsx); colors come
+   from the CSS variables below. Point Tailwind's `dark:` variant at that class
+   too (it defaults to prefers-color-scheme in v4) so class-driven dark styles
+   — e.g. the theme-swapped landing screenshots — follow the chosen theme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
