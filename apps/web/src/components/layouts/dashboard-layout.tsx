@@ -68,6 +68,8 @@ export function DashboardLayout() {
 
   return (
     <div className="flex min-h-screen bg-background">
+      {/* Airmail brand stripe across the very top of the viewport */}
+      <div className="airmail-stripe fixed inset-x-0 top-0 z-[60] h-[3px]" aria-hidden="true" />
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -82,7 +84,7 @@ export function DashboardLayout() {
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
               <Mail className="h-3.5 w-3.5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground">{BRAND_NAME}</span>
+            <span className="font-display text-lg text-foreground">{BRAND_NAME}</span>
           </Link>
           <button className="lg:hidden" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
             <X className="h-5 w-5 text-muted-foreground" />
@@ -214,7 +216,7 @@ export function DashboardLayout() {
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
               <Mail className="h-3 w-3 text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold text-foreground">{BRAND_NAME}</span>
+            <span className="font-display text-base text-foreground">{BRAND_NAME}</span>
           </Link>
         </header>
 

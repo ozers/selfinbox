@@ -615,6 +615,7 @@ export default function SetupPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <div className="airmail-stripe fixed inset-x-0 top-0 h-[3px]" aria-hidden="true" />
       <button
         onClick={toggle}
         className="absolute right-4 top-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"

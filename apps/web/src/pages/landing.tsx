@@ -63,7 +63,7 @@ function Step({
       className="relative rounded-xl border border-border bg-card p-6 sm:p-7"
     >
       <div className="flex items-start gap-4">
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-sm font-bold text-primary">
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-dashed border-primary/40 bg-primary/5 font-mono text-sm font-bold text-primary">
           {num}
         </div>
         <div className="min-w-0 flex-1">
@@ -182,15 +182,18 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Airmail brand stripe */}
+      <div className="airmail-stripe fixed inset-x-0 top-0 z-[60] h-[3px]" aria-hidden="true" />
+
       {/* ── Navbar ────────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
+      <nav className="fixed top-[3px] left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
               <Mail className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold text-foreground">Selfinbox</span>
+            <span className="font-display text-xl text-foreground">Selfinbox</span>
           </Link>
 
           {/* Center links (md+) */}
@@ -261,17 +264,18 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
-      <section className="relative pt-32 pb-20 px-6">
-        {/* Glow */}
+      <section className="paper-grid relative pt-32 pb-20 px-6">
+        {/* Soft glow + fade the grid toward the bottom */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[600px] bg-primary/5 blur-[120px]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-background" />
 
         <div className="relative mx-auto max-w-4xl text-center">
-          {/* Badge */}
+          {/* Stamp-style badge */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground"
+            className="mb-6 inline-flex items-center gap-2 rounded-md border border-dashed border-muted-foreground/40 bg-card px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-muted-foreground"
           >
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-active opacity-75" />
@@ -285,11 +289,11 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl"
+            className="font-display text-5xl tracking-tight sm:text-6xl lg:text-7xl"
           >
             Run your own email service{" "}
             <br className="hidden sm:block" />
-            on <span className="text-primary">AWS</span> in an afternoon.
+            on AWS, <em className="text-primary">in an afternoon.</em>
           </motion.h1>
 
           {/* Subtitle */}
@@ -316,13 +320,14 @@ export default function LandingPage() {
             <HeroCTA className="w-full max-w-md" />
           </motion.div>
 
-          {/* DNS Preview Card */}
+          {/* DNS Preview Card — styled like the back of an airmail envelope */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
             className="mt-14 mx-auto max-w-2xl rounded-xl border border-border bg-card overflow-hidden shadow-sm"
           >
+            <div className="airmail-stripe h-[3px]" aria-hidden="true" />
             {/* Terminal header */}
             <div className="flex items-center gap-1.5 border-b border-border bg-muted px-4 py-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-status-error/60" />
@@ -450,7 +455,7 @@ export default function LandingPage() {
             transition={{ duration: 0.5 }}
             className="text-center"
           >
-            <h2 className="text-3xl font-bold">From zero to live, step by step</h2>
+            <h2 className="font-display text-4xl sm:text-5xl">From zero to live, <em className="text-primary">step by step</em></h2>
             <p className="mt-3 text-muted-foreground">
               Assumes nothing — no AWS account, no Postgres, no shell tools. Plan ~1 hour the first time.
             </p>
@@ -554,7 +559,7 @@ aws ses verify-domain-dkim     --domain yourdomain.com`}</Snippet>
             transition={{ duration: 0.5 }}
             className="text-center"
           >
-            <h2 className="text-3xl font-bold">Frequently Asked Questions</h2>
+            <h2 className="font-display text-4xl sm:text-5xl">Frequently asked questions</h2>
           </motion.div>
 
           <div className="mt-12 space-y-3">
@@ -628,14 +633,15 @@ aws ses verify-domain-dkim     --domain yourdomain.com`}</Snippet>
       </section>
 
       {/* ── Footer ────────────────────────────────────────────────── */}
-      <footer className="border-t border-border bg-background px-6 py-12">
+      <div className="airmail-stripe h-[3px]" aria-hidden="true" />
+      <footer className="bg-background px-6 py-12">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
               <Mail className="h-4 w-4 text-primary-foreground" />
             </div>
             <div>
-              <span className="text-lg font-bold text-foreground">Selfinbox</span>
+              <span className="font-display text-xl text-foreground">Selfinbox</span>
               <p className="text-xs text-muted-foreground">Self-hosted custom-domain email on AWS SES.</p>
             </div>
           </div>

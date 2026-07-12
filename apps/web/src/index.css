@@ -7,8 +7,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Display serif — landing headlines and editorial accents only. */
+  --font-display: "Instrument Serif", Georgia, serif;
 
   --color-background: var(--bg);
   --color-foreground: var(--fg);
@@ -23,49 +25,55 @@
   --color-secondary-foreground: var(--secondary-fg);
   --color-destructive: var(--destructive);
   --color-accent: var(--accent);
+  /* Airmail red — brand accent for stripes and stamps, NOT for errors. */
+  --color-stamp: var(--stamp);
 
   --color-status-active: var(--status-active);
   --color-status-pending: var(--status-pending);
   --color-status-error: var(--status-error);
 }
 
+/* ── Light: warm paper ─────────────────────────────────────────────── */
 :root {
-  --bg: #ffffff;
-  --fg: #0f172a;
+  --bg: #faf9f5;
+  --fg: #1f1d17;
   --card: #ffffff;
-  --card-fg: #0f172a;
-  --border-color: #e2e8f0;
-  --muted: #f1f5f9;
-  --muted-fg: #64748b;
-  --primary: #2563eb;
+  --card-fg: #1f1d17;
+  --border-color: #e7e3d8;
+  --muted: #f1eee5;
+  --muted-fg: #6f6a5c;
+  --primary: #2b45d4;
   --primary-fg: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-fg: #0f172a;
-  --destructive: #ef4444;
-  --accent: #0ea5e9;
+  --secondary: #f1eee5;
+  --secondary-fg: #1f1d17;
+  --destructive: #c73a30;
+  --accent: #0e7c86;
+  --stamp: #d5453c;
 
-  --status-active: #22c55e;
-  --status-pending: #f59e0b;
-  --status-error: #ef4444;
+  --status-active: #1e9e56;
+  --status-pending: #cf8b06;
+  --status-error: #c73a30;
 }
 
+/* ── Dark: sorting facility at night (warm charcoal, not slate) ────── */
 .dark {
-  --bg: #0b0f1a;
-  --fg: #f1f5f9;
-  --card: #111827;
-  --card-fg: #f1f5f9;
-  --border-color: #1e293b;
-  --muted: #1e293b;
-  --muted-fg: #94a3b8;
-  --primary: #3b82f6;
-  --primary-fg: #ffffff;
-  --secondary: #1e293b;
-  --secondary-fg: #f1f5f9;
-  --destructive: #ef4444;
-  --accent: #38bdf8;
+  --bg: #141310;
+  --fg: #eceade;
+  --card: #1c1a16;
+  --card-fg: #eceade;
+  --border-color: #2c2922;
+  --muted: #262319;
+  --muted-fg: #9b957f;
+  --primary: #7189ff;
+  --primary-fg: #10122b;
+  --secondary: #262319;
+  --secondary-fg: #eceade;
+  --destructive: #e2685f;
+  --accent: #4cc4cf;
+  --stamp: #e2685f;
 
   --status-active: #4ade80;
-  --status-pending: #fbbf24;
+  --status-pending: #eab308;
   --status-error: #f87171;
 }
 
@@ -80,6 +88,28 @@ body {
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Airmail stripe — the brand mark. A thin band of alternating
+      red/blue diagonal stripes, like the border of an airmail envelope.
+      Use as a 3-4px tall <div> or border element. ─────────────────── */
+.airmail-stripe {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--stamp) 0 8px,
+    transparent 8px 16px,
+    var(--primary) 16px 24px,
+    transparent 24px 32px
+  );
+}
+
+/* Dotted "ledger paper" texture for landing section backgrounds. */
+.paper-grid {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--fg) 7%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
 }
 
 @keyframes status-pulse {

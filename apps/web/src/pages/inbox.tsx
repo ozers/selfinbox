@@ -173,7 +173,7 @@ export default function InboxPage() {
               >
                 <Link
                   to={`${linkPrefix}/inbox/${email.id}`}
-                  className={`flex items-start gap-3 px-3 py-3 hover:bg-secondary/30 transition-colors sm:items-center sm:px-4 ${
+                  className={`flex items-start gap-3 px-3 py-3 hover:bg-secondary/30 transition-colors sm:items-center sm:px-4 sm:py-2.5 ${
                     index < emails.length - 1 ? "border-b border-border/50" : ""
                   }`}
                 >
