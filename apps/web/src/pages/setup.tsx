@@ -3,8 +3,11 @@ import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
 import { useToast } from "@/components/ui/toast"
+import { useCopy } from "@/lib/use-copy"
 import { useTheme } from "@/lib/theme"
+import { isValidEmail, errorMessage } from "@/lib/utils"
 import { api } from "@/lib/api"
 import type { Domain, SmtpCredentialsReveal } from "@/lib/types"
 import { motion, AnimatePresence } from "framer-motion"
@@ -54,7 +57,7 @@ function validateEmailPrefix(prefix: string): string | null {
 function validateForwardTo(email: string): string | null {
   const trimmed = email.trim()
   if (!trimmed) return null
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return "Enter a valid email address."
+  if (!isValidEmail(trimmed)) return "Enter a valid email address."
   return null
 }
 
@@ -63,6 +66,7 @@ type VerifyState = "idle" | "checking" | "verified" | "pending"
 export default function SetupPage() {
   const { theme, toggle } = useTheme()
   const { toast } = useToast()
+  const { copy } = useCopy()
 
   const [step, setStep] = useState(0)
 
@@ -103,8 +107,7 @@ export default function SetupPage() {
   const forwardToError = useMemo(() => (forwardToTouched ? validateForwardTo(forwardTo) : null), [forwardTo, forwardToTouched])
 
   function copyToClipboard(text: string, label: string) {
-    navigator.clipboard.writeText(text)
-    toast({ type: "success", title: "Copied!", description: `${label} copied to clipboard` })
+    copy(text, { label })
   }
 
   // Map DNS records from API to verifyStatus keys
@@ -138,8 +141,8 @@ export default function SetupPage() {
         ? `${result.created} records added, ${result.skipped} already existed.`
         : `${result.created} DNS records added.`
       toast({ type: "success", title: "Cloudflare configured!", description: msg })
-    } catch (err: any) {
-      toast({ type: "error", title: err.message || "Failed to configure Cloudflare" })
+    } catch (err) {
+      toast({ type: "error", title: errorMessage(err, "Failed to configure Cloudflare") })
     } finally {
       setCfConfiguring(false)
     }
@@ -160,9 +163,9 @@ export default function SetupPage() {
       } else {
         toast({ type: "info", title: `${verifiedCount} of 4 records verified`, description: "DNS changes may take up to 48h." })
       }
-    } catch (err: any) {
+    } catch (err) {
       setVerifyStatus({ mx: "idle", spf: "idle", dkim: "idle", dmarc: "idle" })
-      toast({ type: "error", title: err.message || "Verification failed" })
+      toast({ type: "error", title: errorMessage(err, "Verification failed") })
     } finally {
       setIsVerifying(false)
     }
@@ -183,8 +186,8 @@ export default function SetupPage() {
         const d = await api.post<Domain>("/domains", { domain: domain.trim().toLowerCase() })
         setCreatedDomain(d)
         setStep(1)
-      } catch (err: any) {
-        toast({ type: "error", title: err.message || "Failed to add domain" })
+      } catch (err) {
+        toast({ type: "error", title: errorMessage(err, "Failed to add domain") })
       } finally {
         setAddingDomain(false)
       }
@@ -207,8 +210,8 @@ export default function SetupPage() {
         )
         setSmtpCredentials(creds)
         setStep(4)
-      } catch (err: any) {
-        toast({ type: "error", title: err.message || "Failed to create address" })
+      } catch (err) {
+        toast({ type: "error", title: errorMessage(err, "Failed to create address") })
       } finally {
         setAddingAddress(false)
       }
@@ -291,20 +294,13 @@ export default function SetupPage() {
         <h2 className="text-xl font-bold text-foreground">Add these DNS records</h2>
         <p className="mt-1 text-sm text-muted-foreground">Add the following records to your domain's DNS settings.</p>
 
-        <div className="mt-5 flex rounded-lg bg-secondary p-1">
-          {providers.map((p) => (
-            <button
-              key={p}
-              onClick={() => setActiveProvider(p)}
-              className={
-                "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors " +
-                (activeProvider === p ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")
-              }
-            >
-              {p}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          tabs={providers.map((p) => ({ value: p, label: p }))}
+          value={activeProvider}
+          onChange={setActiveProvider}
+          className="mt-5 w-full gap-0"
+          itemClassName="flex-1 justify-center px-3 py-1.5"
+        />
 
         {activeProvider === "Cloudflare" && (
           <div className={

@@ -16,33 +16,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
-import { useDomains, useEmails, useUsage } from "@/lib/hooks"
+import { DirectionIcon } from "@/components/ui/direction-icon"
+import { useDomains, useEmails, useUsage, useDemoLinks } from "@/lib/hooks"
 import { useAuth } from "@/lib/auth"
-import { useMockEnabled } from "@/lib/mock-data"
+import { formatRelativeTime } from "@/lib/utils"
+import { staggerContainer as container, fadeUpItem as item } from "@/lib/motion"
 import { motion } from "framer-motion"
-
-function timeAgo(date: Date) {
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  if (diffMins < 1) return "just now"
-  if (diffMins < 60) return `${diffMins}m`
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours}h`
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return `${diffDays}d`
-  return date.toLocaleDateString()
-}
-
-const container = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.05 } },
-}
-
-const item = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" as const } },
-}
 
 // Inline SVG sparkline — buckets values into N bars from a series of timestamps
 function Sparkline({
@@ -99,11 +78,7 @@ function trendPercent(current: number, previous: number): number | null {
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const isDemo = useMockEnabled()
-  const prefix = isDemo ? "/demo" : ""
-  const inboxPath = `${prefix}/inbox`
-  const domainsPath = `${prefix}/domains`
-  const setupPath = isDemo ? `${prefix}/domains` : "/setup"
+  const { inboxPath, domainsPath, setupPath } = useDemoLinks()
   const { domains, loading: domainsLoading } = useDomains()
   const { emails, loading: emailsLoading } = useEmails()
   const { usage, loading: usageLoading } = useUsage()
@@ -471,24 +446,14 @@ export default function DashboardPage() {
                     to={`${inboxPath}/${email.id}`}
                     className="flex items-start gap-2.5 px-4 py-3 transition-colors hover:bg-muted/40"
                   >
-                    <span
-                      className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${
-                        isInbound ? "bg-status-active/10" : "bg-primary/10"
-                      }`}
-                    >
-                      {isInbound ? (
-                        <ArrowDownLeft className="h-2.5 w-2.5 text-status-active" />
-                      ) : (
-                        <ArrowUpRight className="h-2.5 w-2.5 text-primary" />
-                      )}
-                    </span>
+                    <DirectionIcon direction={email.direction} size="sm" className="mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className={`truncate text-xs ${unread ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
                           {partner}
                         </span>
                         <span className="flex-shrink-0 font-mono text-[10px] text-muted-foreground">
-                          {timeAgo(new Date(email.createdAt))}
+                          {formatRelativeTime(new Date(email.createdAt), { compact: true })}
                         </span>
                       </div>
                       <p className={`mt-0.5 truncate text-xs ${unread ? "text-foreground/80" : "text-muted-foreground/70"}`}>

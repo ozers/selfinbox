@@ -3,10 +3,12 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
 import { PasswordStrength } from "@/components/ui/password-strength"
 import { useToast } from "@/components/ui/toast"
-import { ArrowLeft, Eye, EyeOff } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { api } from "@/lib/api"
+import { errorMessage } from "@/lib/utils"
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
@@ -15,7 +17,6 @@ export default function ResetPasswordPage() {
 
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
@@ -51,8 +52,8 @@ export default function ResetPasswordPage() {
       await api.post("/auth/reset-password", { token, newPassword: password })
       toast({ type: "success", title: "Password reset successfully!" })
       navigate("/login")
-    } catch (err: any) {
-      toast({ type: "error", title: err.message || "Failed to reset password" })
+    } catch (err) {
+      toast({ type: "error", title: errorMessage(err, "Failed to reset password") })
     } finally {
       setLoading(false)
     }
@@ -81,23 +82,13 @@ export default function ResetPasswordPage() {
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-1.5">
           <Label htmlFor="password">New password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter new password"
-              className="bg-card pr-10"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
+          <PasswordInput
+            id="password"
+            placeholder="Enter new password"
+            className="bg-card"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           <PasswordStrength password={password} />
           {errors.password && (
             <p className="mt-1 text-xs text-status-error">{errors.password}</p>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
 import { useAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
+import { errorMessage } from "@/lib/utils"
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
@@ -33,8 +34,8 @@ export default function VerifyEmailPage() {
     try {
       await api.post("/auth/resend-verification")
       toast({ type: "success", title: "Verification email sent!" })
-    } catch (err: any) {
-      toast({ type: "error", title: err.message || "Failed to send verification email" })
+    } catch (err) {
+      toast({ type: "error", title: errorMessage(err, "Failed to send verification email") })
     } finally {
       setResendLoading(false)
     }

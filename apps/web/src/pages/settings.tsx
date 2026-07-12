@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Eye, EyeOff, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
+import { FormField } from "@/components/ui/form-field"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Dialog } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
 import { PasswordStrength } from "@/components/ui/password-strength"
 import { useToast } from "@/components/ui/toast"
 import { useAuth } from "@/lib/auth"
 import { usePasswordActions, useAccountActions } from "@/lib/hooks"
-import { cn } from "@/lib/utils"
+import { cn, isValidEmail } from "@/lib/utils"
 import { motion } from "framer-motion"
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -40,9 +40,6 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({})
   const [passwordSaving, setPasswordSaving] = useState(false)
 
@@ -76,7 +73,7 @@ export default function SettingsPage() {
     if (!name.trim()) errors.name = "Name is required"
     if (!email.trim()) {
       errors.email = "Email is required"
-    } else if (!emailRegex.test(email.trim())) {
+    } else if (!isValidEmail(email.trim())) {
       errors.email = "Invalid email address"
     }
     setProfileErrors(errors)
@@ -167,8 +164,7 @@ export default function SettingsPage() {
       >
         <h3 className="text-base font-semibold text-foreground mb-5">Profile</h3>
         <div className="space-y-4">
-          <div>
-            <Label className="mb-1.5 block">Full name</Label>
+          <FormField label="Full name" error={profileErrors.name || null}>
             <Input
               value={name}
               onChange={(e) => {
@@ -176,12 +172,8 @@ export default function SettingsPage() {
                 if (profileErrors.name) setProfileErrors((p) => ({ ...p, name: "" }))
               }}
             />
-            {profileErrors.name && (
-              <p className="mt-1 text-xs text-status-error">{profileErrors.name}</p>
-            )}
-          </div>
-          <div>
-            <Label className="mb-1.5 block">Email</Label>
+          </FormField>
+          <FormField label="Email" error={profileErrors.email || null}>
             <Input
               type="email"
               value={email}
@@ -190,10 +182,7 @@ export default function SettingsPage() {
                 if (profileErrors.email) setProfileErrors((p) => ({ ...p, email: "" }))
               }}
             />
-            {profileErrors.email && (
-              <p className="mt-1 text-xs text-status-error">{profileErrors.email}</p>
-            )}
-          </div>
+          </FormField>
           <div className="flex justify-end pt-1">
             <Button onClick={handleSaveProfile} disabled={profileSaving}>
               {profileSaving ? "Saving..." : "Save changes"}
@@ -211,82 +200,37 @@ export default function SettingsPage() {
       >
         <h3 className="text-base font-semibold text-foreground mb-5">Password</h3>
         <div className="space-y-4">
-          <div>
-            <Label className="mb-1.5 block">Current password</Label>
-            <div className="relative">
-              <Input
-                type={showCurrentPassword ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => {
-                  setCurrentPassword(e.target.value)
-                  if (passwordErrors.current) setPasswordErrors((p) => ({ ...p, current: "" }))
-                }}
-                placeholder="Enter current password"
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            {passwordErrors.current && (
-              <p className="mt-1 text-xs text-status-error">{passwordErrors.current}</p>
-            )}
-          </div>
-          <div>
-            <Label className="mb-1.5 block">New password</Label>
-            <div className="relative">
-              <Input
-                type={showNewPassword ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => {
-                  setNewPassword(e.target.value)
-                  if (passwordErrors.new) setPasswordErrors((p) => ({ ...p, new: "" }))
-                }}
-                placeholder="Enter new password"
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            {passwordErrors.new && (
-              <p className="mt-1 text-xs text-status-error">{passwordErrors.new}</p>
-            )}
+          <FormField label="Current password" error={passwordErrors.current || null}>
+            <PasswordInput
+              value={currentPassword}
+              onChange={(e) => {
+                setCurrentPassword(e.target.value)
+                if (passwordErrors.current) setPasswordErrors((p) => ({ ...p, current: "" }))
+              }}
+              placeholder="Enter current password"
+            />
+          </FormField>
+          <FormField label="New password" error={passwordErrors.new || null}>
+            <PasswordInput
+              value={newPassword}
+              onChange={(e) => {
+                setNewPassword(e.target.value)
+                if (passwordErrors.new) setPasswordErrors((p) => ({ ...p, new: "" }))
+              }}
+              placeholder="Enter new password"
+            />
             <PasswordStrength password={newPassword} />
-          </div>
-          <div>
-            <Label className="mb-1.5 block">Confirm password</Label>
-            <div className="relative">
-              <Input
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value)
-                  if (passwordErrors.confirm) setPasswordErrors((p) => ({ ...p, confirm: "" }))
-                }}
-                placeholder="Confirm new password"
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            {passwordErrors.confirm && (
-              <p className="mt-1 text-xs text-status-error">{passwordErrors.confirm}</p>
-            )}
-          </div>
+          </FormField>
+          <FormField label="Confirm password" error={passwordErrors.confirm || null}>
+            <PasswordInput
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value)
+                if (passwordErrors.confirm) setPasswordErrors((p) => ({ ...p, confirm: "" }))
+              }}
+              placeholder="Confirm new password"
+            />
+          </FormField>
           <div className="flex justify-end pt-1">
             <Button onClick={handleUpdatePassword} disabled={passwordSaving}>
               {passwordSaving ? "Updating..." : "Update password"}
@@ -318,20 +262,7 @@ export default function SettingsPage() {
                   {item.description}
                 </p>
               </div>
-              <button
-                onClick={() => item.onChange(!item.checked)}
-                className={cn(
-                  "relative w-10 h-5 rounded-full transition-colors flex-shrink-0",
-                  item.checked ? "bg-primary" : "bg-secondary"
-                )}
-              >
-                <span
-                  className={cn(
-                    "absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-                    item.checked && "translate-x-5"
-                  )}
-                />
-              </button>
+              <Switch checked={item.checked} onChange={item.onChange} aria-label={item.label} />
             </div>
           ))}
         </div>

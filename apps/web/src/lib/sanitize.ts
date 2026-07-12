@@ -47,7 +47,7 @@ export function sanitizeEmailHtml(dirty: string, cidMap?: Record<string, string>
     FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "input", "button", "base", "meta", "link"],
     FORBID_ATTR: ["srcset", "formaction", "action", "ping"],
     ALLOW_DATA_ATTR: false,
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|cid|blob):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|cid|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i,
     RETURN_DOM_FRAGMENT: true,
   }) as unknown as DocumentFragment
 
