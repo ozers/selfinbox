@@ -3,6 +3,25 @@ import { api } from "./api"
 import { useMockEnabled, useMockData } from "@/lib/mock-data"
 import type { Domain, Email, Usage, SmtpCredentials, SmtpCredentialsReveal } from "./types"
 
+// ── Demo-aware navigation ──────────────────────────────────────────
+
+// Inside /demo/* every internal link must stay under /demo, otherwise
+// ProtectedRoute bounces visitors to /login. This centralizes the
+// prefixing that every dashboard page needs.
+export function useDemoLinks() {
+  const isDemo = useMockEnabled()
+  const prefix = isDemo ? "/demo" : ""
+  return {
+    isDemo,
+    prefix,
+    overviewPath: isDemo ? "/demo" : "/dashboard",
+    inboxPath: `${prefix}/inbox`,
+    domainsPath: `${prefix}/domains`,
+    // The setup wizard doesn't exist in the demo; the closest page is Domains.
+    setupPath: isDemo ? "/demo/domains" : "/setup",
+  }
+}
+
 // ── Debounce ───────────────────────────────────────────────────────
 
 // Returns `value` delayed by `delay` ms — used to avoid firing a request

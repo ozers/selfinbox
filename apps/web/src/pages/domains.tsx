@@ -5,28 +5,17 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { EmptyState } from "@/components/ui/empty-state"
-import { useDomains } from "@/lib/hooks"
-import { useMockEnabled } from "@/lib/mock-data"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
+import { useDomains, useDemoLinks } from "@/lib/hooks"
+import { staggerContainer as container, fadeUpItem as item } from "@/lib/motion"
 import { motion } from "framer-motion"
 
 type Tab = "all" | "active" | "pending"
 
-const container = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
-}
-
-const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
-}
-
 export default function DomainsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("all")
   const { domains, loading } = useDomains()
-  const isDemo = useMockEnabled()
-  const linkPrefix = isDemo ? "/demo" : ""
-  const setupPath = isDemo ? "/demo" : "/setup"
+  const { isDemo, prefix: linkPrefix, setupPath } = useDemoLinks()
 
   if (loading) {
     return (
@@ -110,29 +99,14 @@ export default function DomainsPage() {
       ) : (
         <>
           {/* Filter Tabs */}
-          <motion.div variants={item} className="flex gap-1 rounded-lg bg-secondary p-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={
-                  activeTab === tab.key
-                    ? "flex items-center gap-1.5 rounded-md bg-card px-4 py-2 text-sm font-medium shadow-sm transition-colors"
-                    : "flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                }
-              >
-                {tab.label}
-                <span
-                  className={
-                    activeTab === tab.key
-                      ? "rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary"
-                      : "rounded-full bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground"
-                  }
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+          <motion.div variants={item}>
+            <SegmentedTabs
+              tabs={tabs.map((t) => ({ value: t.key, label: t.label, count: t.count }))}
+              value={activeTab}
+              onChange={setActiveTab}
+              itemClassName="px-4 py-2"
+              className="w-full"
+            />
           </motion.div>
 
           {/* Domain List */}

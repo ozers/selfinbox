@@ -8,24 +8,16 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
-  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Dialog } from "@/components/ui/dialog"
+import { PageLoader } from "@/components/ui/page-state"
 import { useToast } from "@/components/ui/toast"
+import { useCopy } from "@/lib/use-copy"
 import { useDomain, useSmtpCredentials, useSmtpActions } from "@/lib/hooks"
+import { staggerContainer as container, fadeUpItem as item } from "@/lib/motion"
 import { motion } from "framer-motion"
-
-const container = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
-}
-
-const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
-}
 
 export default function DomainSmtpPage() {
   const { id } = useParams()
@@ -33,9 +25,9 @@ export default function DomainSmtpPage() {
   const { domain } = useDomain(id)
   const { credentials: smtpCredentials, loading, refetch } = useSmtpCredentials(id)
   const { regenerate } = useSmtpActions()
+  const { copy, copiedField } = useCopy()
 
   const [showPassword, setShowPassword] = useState(false)
-  const [copiedField, setCopiedField] = useState<string | null>(null)
   const [openGuide, setOpenGuide] = useState<string | null>(null)
   const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
@@ -44,12 +36,7 @@ export default function DomainSmtpPage() {
   // before navigating away — never persisted to storage.
   const [revealedPassword, setRevealedPassword] = useState<string | null>(null)
 
-  const handleCopy = (value: string, field: string) => {
-    navigator.clipboard.writeText(value)
-    setCopiedField(field)
-    toast({ type: "success", title: "Copied to clipboard!" })
-    setTimeout(() => setCopiedField(null), 2000)
-  }
+  const handleCopy = (value: string, field: string) => copy(value, { field })
 
   const toggleGuide = (guide: string) => {
     setOpenGuide(openGuide === guide ? null : guide)
@@ -75,13 +62,7 @@ export default function DomainSmtpPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   const credentials = smtpCredentials
     ? [

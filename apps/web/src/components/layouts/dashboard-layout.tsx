@@ -1,12 +1,11 @@
 import { useState } from "react"
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { Mail, LayoutDashboard, Globe, Inbox, Settings, LogOut, Menu, X, Sun, Moon, ArrowRight } from "lucide-react"
+import { Mail, LayoutDashboard, Globe, Inbox, Settings, LogOut, Menu, X, Sun, Moon, ArrowRight, type LucideIcon } from "lucide-react"
 
 const BRAND_NAME = (import.meta.env.VITE_BRAND_NAME as string) || "Selfinbox"
 import { useTheme } from "@/lib/theme"
 import { useAuth } from "@/lib/auth"
-import { useMockEnabled } from "@/lib/mock-data"
-import { useUsage, useDomains } from "@/lib/hooks"
+import { useUsage, useDomains, useDemoLinks } from "@/lib/hooks"
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -17,14 +16,10 @@ export function DashboardLayout() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // When mounted inside /demo/*, sidebar nav must stay inside /demo so links
-  // don't kick visitors out to /dashboard (where ProtectedRoute would bounce
-  // them to /login).
-  const isDemo = useMockEnabled()
-  const linkPrefix = isDemo ? "/demo" : ""
-  const overviewPath = isDemo ? "/demo" : "/dashboard"
-  const inboxPath = `${linkPrefix}/inbox`
-  const domainsPath = `${linkPrefix}/domains`
+  // useDemoLinks keeps sidebar nav inside /demo/* so links don't kick demo
+  // visitors out to /dashboard (where ProtectedRoute would bounce them to
+  // /login).
+  const { isDemo, overviewPath, inboxPath, domainsPath } = useDemoLinks()
 
   const handleLogout = () => {
     if (isDemo) {
@@ -35,8 +30,46 @@ export function DashboardLayout() {
     navigate("/login")
   }
 
+  interface NavItem {
+    to: string
+    icon: LucideIcon
+    label: string
+    // Exact-match only — the demo overview lives at "/demo", which is a
+    // prefix of every other demo route.
+    exact?: boolean
+  }
+
+  const topNavItems: NavItem[] = [
+    { to: overviewPath, icon: LayoutDashboard, label: "Overview", exact: true },
+    { to: domainsPath, icon: Globe, label: "Domains" },
+  ]
+  const bottomNavItems: NavItem[] = isDemo ? [] : [{ to: "/settings", icon: Settings, label: "Settings" }]
+
+  const renderNavItem = (item: NavItem) => {
+    const isActive =
+      location.pathname === item.to ||
+      (!item.exact && location.pathname.startsWith(item.to + "/"))
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        onClick={() => setSidebarOpen(false)}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+          isActive
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+        }`}
+      >
+        <item.icon className="h-4 w-4" />
+        {item.label}
+      </NavLink>
+    )
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
+      {/* Airmail brand stripe across the very top of the viewport */}
+      <div className="airmail-stripe fixed inset-x-0 top-0 z-[60] h-[3px]" aria-hidden="true" />
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -51,7 +84,7 @@ export function DashboardLayout() {
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
               <Mail className="h-3.5 w-3.5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground">{BRAND_NAME}</span>
+            <span className="font-display text-lg text-foreground">{BRAND_NAME}</span>
           </Link>
           <button className="lg:hidden" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
             <X className="h-5 w-5 text-muted-foreground" />
@@ -59,27 +92,7 @@ export function DashboardLayout() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-3">
-          {[
-            { to: overviewPath, icon: LayoutDashboard, label: "Overview" },
-            { to: domainsPath, icon: Globe, label: "Domains" },
-          ].map((item) => {
-            const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + "/")
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </NavLink>
-            )
-          })}
+          {topNavItems.map(renderNavItem)}
 
           {/* Inbox with sub-navigation */}
           <div>
@@ -157,26 +170,7 @@ export function DashboardLayout() {
             </div>
           </div>
 
-          {(isDemo ? [] : [
-            { to: "/settings", icon: Settings, label: "Settings" },
-          ]).map((item) => {
-            const isActive = location.pathname === item.to
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </NavLink>
-            )
-          })}
+          {bottomNavItems.map(renderNavItem)}
         </nav>
 
         <div className="border-t border-border p-3">
@@ -222,7 +216,7 @@ export function DashboardLayout() {
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
               <Mail className="h-3 w-3 text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold text-foreground">{BRAND_NAME}</span>
+            <span className="font-display text-base text-foreground">{BRAND_NAME}</span>
           </Link>
         </header>
 

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams, Link, useNavigate } from "react-router-dom"
-import { ArrowLeft, Reply, Forward, Code, Send, Trash2, Loader2, ArrowDownLeft, ArrowUpRight, ShieldAlert } from "lucide-react"
+import { ArrowLeft, Reply, Forward, Code, Send, Trash2, ArrowDownLeft, ArrowUpRight, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FormField } from "@/components/ui/form-field"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Dialog } from "@/components/ui/dialog"
+import { PageLoader, PageNotFound } from "@/components/ui/page-state"
 import { useToast } from "@/components/ui/toast"
-import { useEmail, useEmailActions } from "@/lib/hooks"
-import { useMockEnabled } from "@/lib/mock-data"
+import { useEmail, useEmailActions, useDemoLinks } from "@/lib/hooks"
+import { isValidEmail, errorMessage } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { sanitizeEmailHtml } from "@/lib/sanitize"
 import { AttachmentList } from "@/components/ui/attachment-list"
@@ -20,17 +21,13 @@ function attachmentUrl(emailId: string, idx: number, inline = false): string {
   return `${API_BASE}/emails/${emailId}/attachments/${idx}${inline ? "?inline=1" : ""}`
 }
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
 export default function EmailDetailPage() {
   const { emailId } = useParams()
   const navigate = useNavigate()
   const { toast } = useToast()
   const { email, loading } = useEmail(emailId)
   const { deleteEmail } = useEmailActions()
-  const isDemo = useMockEnabled()
-  const linkPrefix = isDemo ? "/demo" : ""
-  const inboxPath = `${linkPrefix}/inbox`
+  const { isDemo, inboxPath } = useDemoLinks()
 
   const [showReply, setShowReply] = useState(false)
   const [showForward, setShowForward] = useState(false)
@@ -82,21 +79,10 @@ export default function EmailDetailPage() {
     }
   }, [email?.id, inlineImages])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (!email) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-lg text-muted-foreground">Email not found.</p>
-        <Link to={inboxPath} className="mt-4 text-sm text-primary hover:underline">Back to Inbox</Link>
-      </div>
-    )
+    return <PageNotFound message="Email not found." backTo={inboxPath} backLabel="Back to Inbox" />
   }
 
   const createdAtDate = new Date(email.createdAt)
@@ -132,8 +118,8 @@ export default function EmailDetailPage() {
       toast({ type: "success", title: "Reply sent!" })
       setShowReply(false)
       setReplyText("")
-    } catch (err: any) {
-      toast({ type: "error", title: err.message || "Failed to send reply" })
+    } catch (err) {
+      toast({ type: "error", title: errorMessage(err, "Failed to send reply") })
     } finally {
       setReplySending(false)
     }
@@ -144,7 +130,7 @@ export default function EmailDetailPage() {
       setForwardToError("Recipient is required")
       return
     }
-    if (!emailRegex.test(forwardTo.trim())) {
+    if (!isValidEmail(forwardTo.trim())) {
       setForwardToError("Invalid email address")
       return
     }
@@ -165,8 +151,8 @@ export default function EmailDetailPage() {
       setShowForward(false)
       setForwardTo("")
       setForwardText("")
-    } catch (err: any) {
-      toast({ type: "error", title: err.message || "Failed to forward email" })
+    } catch (err) {
+      toast({ type: "error", title: errorMessage(err, "Failed to forward email") })
     } finally {
       setForwardSending(false)
     }
@@ -203,8 +189,8 @@ export default function EmailDetailPage() {
         {/* Direction banner */}
         <div className={`flex items-center gap-2 px-5 py-2 text-xs font-medium ${
           email.direction === "inbound"
-            ? "bg-emerald-500/10 text-emerald-400"
-            : "bg-blue-500/10 text-blue-400"
+            ? "bg-status-active/10 text-status-active"
+            : "bg-primary/10 text-primary"
         }`}>
           {email.direction === "inbound"
             ? <><ArrowDownLeft className="h-3.5 w-3.5" /> Incoming — {email.address}</>
@@ -233,11 +219,11 @@ export default function EmailDetailPage() {
       </motion.div>
 
       {email.hasQuarantined && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm">
-          <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
+        <div className="flex items-start gap-3 rounded-xl border border-status-error/40 bg-status-error/5 px-4 py-3 text-sm">
+          <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-error" />
           <div>
-            <p className="font-medium text-red-300">This email contains one or more potentially unsafe attachments.</p>
-            <p className="mt-0.5 text-xs text-red-300/80">
+            <p className="font-medium text-status-error">This email contains one or more potentially unsafe attachments.</p>
+            <p className="mt-0.5 text-xs text-status-error/80">
               Attachments below marked in red were flagged as dangerous (executable, virus, or MIME mismatch). Open them only if you fully trust the sender.
             </p>
           </div>
@@ -253,7 +239,7 @@ export default function EmailDetailPage() {
         {email.bodyHtml ? (
           <div className="overflow-x-auto">
             <div
-              className="prose prose-sm prose-invert max-w-none text-foreground/85 [&_a]:text-primary [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_img]:max-w-full [&_img]:h-auto [&_table]:max-w-full"
+              className="text-sm leading-relaxed text-foreground/85 [&_a]:text-primary [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_img]:max-w-full [&_img]:h-auto [&_table]:max-w-full"
               dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(email.bodyHtml, cidMap) }}
             />
           </div>
@@ -342,15 +328,13 @@ export default function EmailDetailPage() {
             className="overflow-hidden"
           >
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <div>
-                <Label className="mb-1.5 block">To</Label>
+              <FormField label="To" error={forwardToError || null}>
                 <Input
                   placeholder="recipient@example.com"
                   value={forwardTo}
                   onChange={(e) => { setForwardTo(e.target.value); if (forwardToError) setForwardToError("") }}
                 />
-                {forwardToError && <p className="mt-1 text-xs text-status-error">{forwardToError}</p>}
-              </div>
+              </FormField>
               <textarea
                 rows={4}
                 placeholder="Add a message (optional)..."

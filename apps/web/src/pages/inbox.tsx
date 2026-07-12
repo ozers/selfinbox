@@ -1,23 +1,22 @@
 import { useState, useEffect } from "react"
 import { Link, useSearchParams } from "react-router-dom"
-import { Plus, Search, Mail, Loader2, X, Minus, Send, ArrowDownLeft, ArrowUpRight, Paperclip, ShieldAlert } from "lucide-react"
+import { Plus, Search, Mail, X, Minus, Send, Paperclip, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { EmptyState } from "@/components/ui/empty-state"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
+import { DirectionIcon } from "@/components/ui/direction-icon"
+import { PageLoader } from "@/components/ui/page-state"
 import { useToast } from "@/components/ui/toast"
-import { useEmails, useDomains, useDebouncedValue } from "@/lib/hooks"
-import { useMockEnabled } from "@/lib/mock-data"
-import { formatRelativeTime } from "@/lib/utils"
+import { useEmails, useDomains, useDebouncedValue, useDemoLinks } from "@/lib/hooks"
+import { formatRelativeTime, isValidEmail, errorMessage } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
 export default function InboxPage() {
   const { toast } = useToast()
-  const isDemo = useMockEnabled()
-  const linkPrefix = isDemo ? "/demo" : ""
+  const { isDemo, prefix: linkPrefix } = useDemoLinks()
   const [searchParams] = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const [domainFilter, setDomainFilter] = useState(searchParams.get("domain") ?? "all")
@@ -79,7 +78,7 @@ export default function InboxPage() {
     const errors: Record<string, string> = {}
     if (!composeFrom) errors.from = "Select a sender"
     if (!composeTo.trim()) errors.to = "Recipient is required"
-    else if (!emailRegex.test(composeTo.trim())) errors.to = "Invalid email"
+    else if (!isValidEmail(composeTo.trim())) errors.to = "Invalid email"
     if (!composeSubject.trim()) errors.subject = "Subject is required"
     if (!composeBody.trim()) errors.body = "Body is required"
     setComposeErrors(errors)
@@ -99,8 +98,8 @@ export default function InboxPage() {
       toast({ type: "success", title: "Email sent!" })
       closeCompose()
       refetch()
-    } catch (err: any) {
-      toast({ type: "error", title: err.message || "Failed to send email" })
+    } catch (err) {
+      toast({ type: "error", title: errorMessage(err, "Failed to send email") })
     } finally {
       setComposeSending(false)
     }
@@ -115,12 +114,12 @@ export default function InboxPage() {
     { value: "all", label: "All" },
     { value: "inbound", label: "Incoming" },
     { value: "outbound", label: "Outgoing" },
-  ]
+  ] as const
   const statusTabs = [
     { value: "all", label: "All" },
     { value: "unread", label: "Unread" },
     { value: "read", label: "Read" },
-  ]
+  ] as const
 
   return (
     <div className="space-y-6">
@@ -147,43 +146,13 @@ export default function InboxPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-        <div className="flex gap-1 rounded-lg bg-secondary p-1 w-fit">
-          {directionTabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setDirectionFilter(tab.value)}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                directionFilter === tab.value
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs tabs={[...directionTabs]} value={directionFilter} onChange={setDirectionFilter} />
         <div className="hidden h-4 w-px bg-border sm:block" />
-        <div className="flex gap-1 rounded-lg bg-secondary p-1 w-fit">
-          {statusTabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setStatusFilter(tab.value)}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                statusFilter === tab.value
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs tabs={[...statusTabs]} value={statusFilter} onChange={setStatusFilter} />
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <PageLoader />
       ) : error ? (
         <EmptyState icon={Mail} title="Failed to load emails" description="An error occurred while fetching your emails." />
       ) : emails.length === 0 ? (
@@ -204,19 +173,11 @@ export default function InboxPage() {
               >
                 <Link
                   to={`${linkPrefix}/inbox/${email.id}`}
-                  className={`flex items-start gap-3 px-3 py-3 hover:bg-secondary/30 transition-colors sm:items-center sm:px-4 ${
+                  className={`flex items-start gap-3 px-3 py-3 hover:bg-secondary/30 transition-colors sm:items-center sm:px-4 sm:py-2.5 ${
                     index < emails.length - 1 ? "border-b border-border/50" : ""
                   }`}
                 >
-                  {/* Direction icon */}
-                  <span className={`flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-full ${
-                    isInbound ? "bg-status-active/10" : "bg-primary/10"
-                  }`}>
-                    {isInbound
-                      ? <ArrowDownLeft className="h-3.5 w-3.5 text-status-active" />
-                      : <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
-                    }
-                  </span>
+                  <DirectionIcon direction={email.direction} />
 
                   {/* Unread dot */}
                   <span className={`mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full sm:mt-0 ${!email.isRead ? "bg-primary" : "bg-transparent"}`} />
@@ -244,7 +205,7 @@ export default function InboxPage() {
                     {displaySubject}
                   </span>
                   {email.hasQuarantined ? (
-                    <ShieldAlert className="hidden h-3.5 w-3.5 flex-shrink-0 text-red-400 sm:inline-block" aria-label="Contains unsafe attachment" />
+                    <ShieldAlert className="hidden h-3.5 w-3.5 flex-shrink-0 text-status-error sm:inline-block" aria-label="Contains unsafe attachment" />
                   ) : (email.attachments?.length ?? 0) > 0 ? (
                     <Paperclip className="hidden h-3.5 w-3.5 flex-shrink-0 text-muted-foreground sm:inline-block" aria-label={`${email.attachments.length} attachment${email.attachments.length === 1 ? "" : "s"}`} />
                   ) : null}
