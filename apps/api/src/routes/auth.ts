@@ -9,6 +9,7 @@ import { authMiddleware, getJwtSecret } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/rate-limit.js";
 import { sendEmail, verifyEmailBody, resetPasswordBody } from "../lib/send-email.js";
 import { serializeUser } from "../serializers.js";
+import { track } from "../lib/track.js";
 
 const auth = new Hono<{ Variables: AppVariables }>();
 
@@ -93,6 +94,8 @@ auth.post("/register", registerLimit, async (c) => {
   const passwordHash = hashSync(password, BCRYPT_COST);
 
   await sql`INSERT INTO users (id, name, email, password_hash) VALUES (${id}, ${name}, ${normalizedEmail}, ${passwordHash})`;
+
+  track("signup", { method: "password" }, id);
 
   const { raw, hash } = generateEmailToken();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);

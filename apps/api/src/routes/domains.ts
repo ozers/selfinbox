@@ -13,6 +13,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import { serializeDomain, serializeAddress } from "../serializers.js";
 import { encrypt } from "../lib/secret-box.js";
 import { sendEmail, addressVerifyBody } from "../lib/send-email.js";
+import { track } from "../lib/track.js";
 import { createHash, randomBytes } from "node:crypto";
 
 const domains = new Hono<{ Variables: AppVariables }>();
@@ -169,6 +170,9 @@ domains.post("/", async (c) => {
     INSERT INTO domains (id, user_id, domain, ses_verification_token, ses_dkim_tokens)
     VALUES (${domainId}, ${userId}, ${domainName}, ${verificationToken}, ${JSON.stringify(dkimTokens)})
   `;
+
+  // Activation milestone — no domain name in props (that would be PII-adjacent).
+  track("domain_created", {}, userId);
 
   await Promise.all([
     sql`INSERT INTO dns_records (id, domain_id, type, name, value) VALUES (${crypto.randomUUID()}, ${domainId}, 'TXT', ${`_amazonses.${domainName}`}, ${verificationToken})`,
