@@ -33,48 +33,79 @@
   --color-status-error: var(--status-error);
 }
 
-/* ── Light: warm paper ─────────────────────────────────────────────── */
-:root {
-  --bg: #faf9f5;
-  --fg: #1f1d17;
-  --card: #ffffff;
-  --card-fg: #1f1d17;
-  --border-color: #e7e3d8;
-  --muted: #f1eee5;
-  --muted-fg: #6f6a5c;
-  --primary: #2b45d4;
-  --primary-fg: #ffffff;
-  --secondary: #f1eee5;
-  --secondary-fg: #1f1d17;
-  --destructive: #c73a30;
-  --accent: #0e7c86;
-  --stamp: #d5453c;
+/* Palette: cool neutral surfaces with saturated accents (shared with the
+   Tessera scheme). The previous warm near-neutral ramp desaturated every
+   accent sitting on it, which is what read as dusty — especially in dark.
+   Every value below clears 4.5:1 against the surface it's used on. */
 
-  --status-active: #1e9e56;
-  --status-pending: #cf8b06;
-  --status-error: #c73a30;
+/* ── Light: cool paper ─────────────────────────────────────────────── */
+:root {
+  --bg: #f8f9fb;
+  --fg: #181b20;
+  --card: #ffffff;
+  --card-fg: #181b20;
+  --border-color: #dbdde3;
+  --muted: #edeff3;
+  --muted-fg: #4f545e;
+  /* Deepened one step from the scheme's #2a78d6 so white button text clears AA. */
+  --primary: #2166c9;
+  --primary-fg: #ffffff;
+  --secondary: #edeff3;
+  --secondary-fg: #181b20;
+  --destructive: #c0392f;
+  --accent: #007b92;
+  /* Stripes and stamps are decorative, so this keeps the brighter red. */
+  --stamp: #e34948;
+
+  --status-active: #157a45;
+  --status-pending: #8a6100;
+  --status-error: #c0392f;
+
+  /* Categorical set — used to tell domains apart in mixed lists (see
+     `domainColorMap` in lib/utils.ts). Each value is a step off the shared
+     scheme's column so 10px text on a 12% tint of itself clears 4.5:1.
+     Ordered by hue distance, not by the source column order: domains take
+     these slots in sequence, so neighbours have to stay apart at badge size —
+     the two greens sit at 3 and 8 rather than 3 and 6. */
+  --series-1: #246abd;
+  --series-2: #b64112;
+  --series-3: #127853;
+  --series-4: #c4225f;
+  --series-5: #4a3aa7;
+  --series-6: #8f6100;
+  --series-7: #ca201f;
+  --series-8: #007900;
 }
 
-/* ── Dark: sorting facility at night (warm charcoal, not slate) ────── */
+/* ── Dark: near-black cool neutrals, accents carry the colour ──────── */
 .dark {
-  --bg: #141310;
-  --fg: #eceade;
-  --card: #1c1a16;
-  --card-fg: #eceade;
-  --border-color: #2c2922;
-  --muted: #262319;
-  --muted-fg: #9b957f;
-  --primary: #7189ff;
-  --primary-fg: #10122b;
-  --secondary: #262319;
-  --secondary-fg: #eceade;
-  --destructive: #e2685f;
-  --accent: #4cc4cf;
-  --stamp: #e2685f;
+  --bg: #0b0c0f;
+  --fg: #e9ebef;
+  --card: #141619;
+  --card-fg: #e9ebef;
+  --border-color: #282b31;
+  --muted: #191b1f;
+  --muted-fg: #a2a6ae;
+  --primary: #3987e5;
+  --primary-fg: #0b0c0f;
+  --secondary: #191b1f;
+  --secondary-fg: #e9ebef;
+  --destructive: #e66767;
+  --accent: #00bcc5;
+  --stamp: #e66767;
 
-  --status-active: #4ade80;
-  --status-pending: #eab308;
-  --status-error: #f87171;
+  --status-active: #46c07a;
+  --status-pending: #c98500;
+  --status-error: #e66767;
+
+  --series-1: #448ee6;
+  --series-2: #dd6a3c;
+  --series-3: #199e70;
+  --series-4: #d9638e;
+  --series-5: #9085e9;
+  --series-6: #c98500;
+  --series-7: #e66767;
+  --series-8: #00a200;
 }
 
 * {
