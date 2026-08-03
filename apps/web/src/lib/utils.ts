@@ -18,6 +18,28 @@ export function isValidEmail(value: string): boolean {
   return EMAIL_REGEX.test(value)
 }
 
+// Domain part of an address, for grouping and colouring. Falls back to the
+// whole string so a malformed address still hashes to a stable bucket.
+export function domainOf(address: string): string {
+  return address.split("@")[1] ?? address
+}
+
+const SERIES_COUNT = 8
+
+// Maps each domain to one of --series-1..8 (defined in index.css) by creation
+// order, not by hashing the name: with a handful of domains a hash collides far
+// more often than it feels like it should — six names into eight buckets share
+// a colour ~92% of the time. Creation order is immutable, so a domain keeps its
+// colour for good and a newly added one takes the next slot. Past eight domains
+// colours repeat, which is the point at which the address text carries it.
+export function domainColorMap(domains: Array<{ domain: string; createdAt: string }>): Map<string, string> {
+  return new Map(
+    [...domains]
+      .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
+      .map((d, i) => [d.domain, `var(--series-${(i % SERIES_COUNT) + 1})`])
+  )
+}
+
 // `compact` drops the " ago" suffix for tight layouts (dashboard activity feed).
 export function formatRelativeTime(date: Date, opts?: { compact?: boolean }): string {
   const suffix = opts?.compact ? "" : " ago"

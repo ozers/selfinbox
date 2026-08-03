@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { Plus, Search, Mail, X, Minus, Send, Paperclip, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { DirectionIcon } from "@/components/ui/direction-icon"
 import { PageLoader } from "@/components/ui/page-state"
 import { useToast } from "@/components/ui/toast"
 import { useEmails, useDomains, useDebouncedValue, useDemoLinks } from "@/lib/hooks"
-import { formatRelativeTime, isValidEmail, errorMessage } from "@/lib/utils"
+import { formatRelativeTime, isValidEmail, errorMessage, domainOf, domainColorMap } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -33,6 +33,10 @@ export default function InboxPage() {
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
 
   const { domains } = useDomains()
+  // Colour the address badge per domain only when there's more than one to tell
+  // apart — on a single-domain account every row would get the same hue, which
+  // is decoration, not signal. Direction already reads from the icon.
+  const domainColors = useMemo(() => (domains.length > 1 ? domainColorMap(domains) : null), [domains])
   const { emails, loading, error, refetch } = useEmails({
     domain: domainFilter !== "all" ? domainFilter : undefined,
     address: addressFilter || undefined,
@@ -164,6 +168,7 @@ export default function InboxPage() {
             const displayAddr = isInbound ? email.from : email.to[0] ?? email.address
             const displaySubject = email.subject
             const displayAddressBadge = email.address
+            const badgeColor = domainColors?.get(domainOf(email.address))
             return (
               <motion.div
                 key={email.id}
@@ -209,9 +214,17 @@ export default function InboxPage() {
                   ) : (email.attachments?.length ?? 0) > 0 ? (
                     <Paperclip className="hidden h-3.5 w-3.5 flex-shrink-0 text-muted-foreground sm:inline-block" aria-label={`${email.attachments.length} attachment${email.attachments.length === 1 ? "" : "s"}`} />
                   ) : null}
-                  <span className={`hidden flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-mono sm:inline-block ${
-                    isInbound ? "bg-status-active/10 text-status-active" : "bg-primary/10 text-primary"
-                  }`}>
+                  <span
+                    className="hidden flex-shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground sm:inline-block"
+                    style={
+                      badgeColor
+                        ? {
+                            backgroundColor: `color-mix(in srgb, ${badgeColor} 12%, transparent)`,
+                            color: badgeColor,
+                          }
+                        : undefined
+                    }
+                  >
                     {displayAddressBadge}
                   </span>
                   <span className="hidden flex-shrink-0 font-mono text-xs text-muted-foreground w-16 text-right sm:inline-block">
