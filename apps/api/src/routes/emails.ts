@@ -7,6 +7,7 @@ import { ses, s3, S3_INBOUND_BUCKET } from "../lib/aws.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { serializeEmail } from "../serializers.js";
 import { INLINE_IMAGE_MIMES, s3Key, type AttachmentMeta } from "../lib/attachments.js";
+import { isCatchallSender } from "../lib/sender.js";
 
 const emails = new Hono<{ Variables: AppVariables }>();
 
@@ -113,9 +114,15 @@ emails.post("/send", async (c) => {
     return c.json({ error: "Sender domain not verified or not found" }, 403);
   }
 
-  const [addr] = await sql`
-    SELECT * FROM email_addresses WHERE address = ${from} AND domain_id = ${domain.id}
+  let [addr] = await sql`
+    SELECT * FROM email_addresses WHERE address = ${from} AND domain_id = ${domain.id} AND is_catchall = false
   `;
+
+  if (!addr && isCatchallSender(from, domain.domain)) {
+    [addr] = await sql`
+      SELECT * FROM email_addresses WHERE domain_id = ${domain.id} AND is_catchall = true AND is_active = true
+    `;
+  }
 
   if (!addr) {
     return c.json({ error: "Sender address not found" }, 403);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -18,8 +18,12 @@ export default function VerifyEmailPage() {
   const [resendLoading, setResendLoading] = useState(false)
   const { toast } = useToast()
 
+  // Tokens are single-use, so StrictMode's second effect run would see a 400.
+  const requested = useRef(false)
+
   useEffect(() => {
-    if (!token) return
+    if (!token || requested.current) return
+    requested.current = true
 
     api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`)
       .then(() => {

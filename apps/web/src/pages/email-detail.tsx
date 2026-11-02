@@ -9,7 +9,7 @@ import { Dialog } from "@/components/ui/dialog"
 import { PageLoader, PageNotFound } from "@/components/ui/page-state"
 import { useToast } from "@/components/ui/toast"
 import { useEmail, useEmailActions, useDemoLinks } from "@/lib/hooks"
-import { isValidEmail, errorMessage } from "@/lib/utils"
+import { isValidEmail, errorMessage, replySender } from "@/lib/utils"
 import { api } from "@/lib/api"
 import { sanitizeEmailHtml } from "@/lib/sanitize"
 import { AttachmentList } from "@/components/ui/attachment-list"
@@ -110,7 +110,7 @@ export default function EmailDetailPage() {
     setReplySending(true)
     try {
       await api.post("/emails/send", {
-        from: email!.address,
+        from: replySender(email!),
         to: email!.from,
         subject: `Re: ${email!.subject}`,
         bodyText: replyText.trim(),
@@ -142,7 +142,7 @@ export default function EmailDetailPage() {
         : `---------- Forwarded message ----------\n${email!.bodyText}`
 
       await api.post("/emails/send", {
-        from: email!.address,
+        from: replySender(email!),
         to: forwardTo.trim(),
         subject: `Fwd: ${email!.subject}`,
         bodyText: body,

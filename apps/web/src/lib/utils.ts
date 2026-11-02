@@ -11,6 +11,16 @@ export function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback
 }
 
+// The address to reply or forward from. Mail caught by a catch-all is stored
+// under `*@domain`, which can't send, so answer from the mailbox it was sent to.
+export function replySender(email: { address: string; to: string[]; cc: string[] }): string {
+  if (!email.address.startsWith("*@")) return email.address
+  const suffix = email.address.slice(1).toLowerCase()
+  const match = [...email.to, ...email.cc].find((a) => a.toLowerCase().endsWith(suffix))
+  if (!match) throw new Error("Couldn't tell which address this email was sent to")
+  return match
+}
+
 // Single source of truth for client-side email format checks.
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 

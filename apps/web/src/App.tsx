@@ -93,9 +93,13 @@ function appRoutes() {
       <Route element={<GuestRoute><AuthLayout /></GuestRoute>}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+      </Route>
+
+      {/* Reachable signed in or out: register logs the user in, so the emailed link usually opens with a session */}
+      <Route element={<AuthLayout />}>
+        <Route path="/verify-email" element={<VerifyEmail />} />
       </Route>
 
       {/* Setup wizard (protected) */}
