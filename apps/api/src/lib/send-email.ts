@@ -25,8 +25,7 @@ export async function sendEmail(to: string, subject: string, body: string) {
   }
 
   if (!FROM_EMAIL) {
-    console.error("[email] FROM_EMAIL env var is not set — cannot send system mail");
-    return;
+    throw new Error("FROM_EMAIL env var is not set — cannot send system mail");
   }
 
   await ses.send(new SendEmailCommand({

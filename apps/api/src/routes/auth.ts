@@ -373,9 +373,14 @@ auth.post("/resend-verification", authMiddleware, resendVerifyLimit, async (c) =
     VALUES (${crypto.randomUUID()}, ${userId}, ${hash}, 'verify', ${expiresAt})
   `;
 
-  sendEmail(user.email, "Verify your account", verifyEmailBody(raw)).catch((err) =>
-    console.error("[auth/resend] verify email send failed:", err?.message ?? err),
-  );
+  // Awaited, unlike the other system mails: the user is waiting on this one and
+  // the response tells them it was sent, so a failure has to reach them.
+  try {
+    await sendEmail(user.email, "Verify your account", verifyEmailBody(raw));
+  } catch (err: any) {
+    console.error("[auth/resend] verify email send failed:", err?.message ?? err);
+    return c.json({ error: "Couldn't send the verification email. Check that FROM_EMAIL is verified in SES." }, 502);
+  }
 
   return c.json({ message: "Verification email sent" });
 });

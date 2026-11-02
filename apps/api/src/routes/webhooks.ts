@@ -213,7 +213,8 @@ async function handleInboundEmail(snsMessage: any) {
       try {
         await ses.send(
           new SendEmailCommand({
-            Source: address.address,
+            // A catch-all's stored address is `*@domain`, which SES can't send from.
+            Source: address.is_catchall ? recipientAddr.toLowerCase() : address.address,
             Destination: { ToAddresses: [fwd] },
             Message: {
               Subject: { Data: `Fwd: ${parsed.subject}`, Charset: "UTF-8" },
